@@ -1,0 +1,23 @@
+{
+  "name": "playrightproject",
+  "version": "1.0.0",
+  "description": "Final CS project: PlayRight -  Practice your instrument better!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eyalbouganim/PlayRightProject.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eyalbouganim/PlayRightProject/issues"
+  },
+  "homepage": "https://github.com/eyalbouganim/PlayRightProject#readme",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
