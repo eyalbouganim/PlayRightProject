@@ -1,0 +1,80 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 2rem;
+  color: white;
+  border-radius: 10px;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.recording-section {
+  margin: 1.5rem 0;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.record-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+  border: none;
+  color: white;
+  padding: 0.9rem 1.6rem;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.record-btn.recording {
+  background: linear-gradient(45deg, #e74c3c, #c0392b);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.stop-btn {
+  background: #95a5a6;
+  border: none;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px;
+  cursor: pointer;
+}
+
+.result {
+  background: rgba(46, 204, 113, 0.1);
+  border: 2px solid #2ecc71;
+  border-radius: 10px;
+  padding: 1.2rem;
+  margin-top: 1.5rem;
+  max-width: 520px;
+}
+
+.error {
+  background: rgba(231, 76, 60, 0.1);
+  border: 2px solid #e74c3c;
+  border-radius: 10px;
+  padding: 1rem;
+  color: #e74c3c;
+  margin-top: 1rem;
+}
+
+.instructions {
+  margin-top: 1.2rem;
+  opacity: 0.85;
+}
