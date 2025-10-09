@@ -1,95 +1,179 @@
-import numpy as np
 import librosa
-from scipy.signal import butter, sosfilt
-import sounddevice as sd
+import numpy as np
 
-
-def detect_single_note(audio_path,
-                       sr_target=22050,
-                       highpass_hz=80.0,
-                       fmin=65.0,          # C2
-                       fmax=1200.0,        # ~ D6
-                       frame_length=2048,
-                       hop_length=256):
-    # Load mono
-    y, sr = librosa.load(audio_path, sr=sr_target, mono=True)
-
-    # High-pass filter to reduce fan/AC hum and rumble
-    sos = butter(4, highpass_hz, btype='highpass', fs=sr, output='sos')
-    y = sosfilt(sos, y)
-
-    # Harmonic-only using HPSS
-    y_harm, _ = librosa.effects.hpss(y)
-
-    # STFT energy per frame for weighting and gating
-    S = np.abs(librosa.stft(y_harm, n_fft=frame_length, hop_length=hop_length))**2
-    frame_energy = S.sum(axis=0) + 1e-12
-
-    # f0 via YIN
-    try:
-        f0 = librosa.yin(y_harm, fmin=fmin, fmax=fmax, sr=sr,
-                         frame_length=frame_length, hop_length=hop_length)
-    except Exception:
-        return {'note': 'Unknown', 'frequency': 0.0, 'confidence': 0.0}
-
-    valid = np.isfinite(f0)
-    if not np.any(valid):
-        return {'note': 'Unknown', 'frequency': 0.0, 'confidence': 0.0}
-
-    fe_valid = frame_energy[valid]
-    f0_valid = f0[valid]
-
-    # Energy gating: keep only strong frames relative to distribution
-    energy_thresh = np.median(fe_valid) * 1.5
-    strong = fe_valid >= max(1e-10, energy_thresh)
-
-    if not np.any(strong):
-        # fallback to top-quantile frames if nothing passes the gate
-        q = np.quantile(fe_valid, 0.8)
-        strong = fe_valid >= q
-
-    f0_ke = f0_valid[strong]
-    fe_ke = fe_valid[strong]
-    if len(f0_ke) == 0:
-        return {'note': 'Unknown', 'frequency': 0.0, 'confidence': 0.0}
-
-    # Robust estimate: energy-weighted median
-    freq_est = _weighted_median(f0_ke, fe_ke)
-
-    # Confidence from weighted MAD around estimate
-    mad = _weighted_mad(f0_ke, fe_ke, center=freq_est) + 1e-9
-    spread_ratio = np.clip(mad / freq_est, 0.0, 0.5)  # smaller is better
-    conf = (1.0 - (spread_ratio / 0.5)) * 100.0
-
-    note = pitch_to_note(freq_est)
-    return {
-        'note': note,
-        'frequency': float(freq_est),
-        'confidence': float(np.clip(conf, 0.0, 100.0))
-    }
-
-def pitch_to_note(frequency):
-    if not np.isfinite(frequency) or frequency <= 0:
-        return "Unknown"
-    A4 = 440.0
-    C0 = A4 * np.power(2.0, -4.75)
-    note_number = int(np.round(12.0 * np.log2(frequency / C0)))
+# Piano note frequencies (A0 to C8 - 88 keys)
+def get_piano_notes():
+    """Generate all 88 piano key frequencies"""
+    # A0 is MIDI note 21, C8 is MIDI note 108
+    notes = []
     note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    note_name = note_names[note_number % 12]
-    octave = note_number // 12
-    return f"{note_name}{octave}"
+    
+    for midi_num in range(21, 109):  # 88 piano keys
+        freq = 440 * (2 ** ((midi_num - 69) / 12))  # A4 = 440Hz = MIDI 69
+        octave = (midi_num - 12) // 12
+        note_name = note_names[midi_num % 12]
+        notes.append({
+            'name': f"{note_name}{octave}",
+            'freq': freq,
+            'midi': midi_num
+        })
+    
+    return notes
 
-def _weighted_median(values, weights):
-    order = np.argsort(values)
-    v = values[order]
-    w = weights[order]
-    cdf = np.cumsum(w) / (np.sum(w) + 1e-12)
-    idx = np.searchsorted(cdf, 0.5)
-    idx = np.clip(idx, 0, len(v) - 1)
-    return float(v[idx])
+PIANO_NOTES = get_piano_notes()
 
-def _weighted_mad(values, weights, center=None):
-    if center is None:
-        center = _weighted_median(values, weights)
-    dev = np.abs(values - center)
-    return _weighted_median(dev, weights)
+def freq_to_note(frequency):
+    """Convert frequency to closest piano note"""
+    if frequency <= 0:
+        return None
+    
+    # Find closest note
+    min_diff = float('inf')
+    closest_note = None
+    
+    for note in PIANO_NOTES:
+        diff = abs(note['freq'] - frequency)
+        if diff < min_diff:
+            min_diff = diff
+            closest_note = note
+    
+    # Check if frequency is close enough (within 50 cents / half a semitone)
+    if closest_note and min_diff < closest_note['freq'] * 0.03:  # ~3% tolerance
+        return closest_note
+    
+    return None
+
+
+def detect_notes(audio_data, sample_rate):
+    """
+    Detect notes over time using onset detection and pitch tracking
+    Returns list of detected notes with timestamps
+    """
+    # Detect note onsets (when notes start)
+    onset_frames = librosa.onset.onset_detect(
+        y=audio_data, 
+        sr=sample_rate, 
+        units='frames',
+        backtrack=True,
+        wait=10,  # Minimum frames between onsets (reduces sensitivity)
+        pre_max=20,
+        post_max=20,
+        pre_avg=100,
+        post_avg=100,
+        delta=0.2  # Higher = less sensitive
+    )
+    onset_times = librosa.frames_to_time(onset_frames, sr=sample_rate)
+    
+    # Add end time
+    onset_times = np.append(onset_times, len(audio_data) / sample_rate)
+    
+    detected_notes = []
+    
+    # Analyze each segment between onsets
+    for i in range(len(onset_times) - 1):
+        start_time = onset_times[i]
+        end_time = onset_times[i + 1]
+        
+        # Extract segment
+        start_sample = int(start_time * sample_rate)
+        end_sample = int(end_time * sample_rate)
+        segment = audio_data[start_sample:end_sample]
+        
+        if len(segment) < 512:  # Skip very short segments
+            continue
+        
+        # Detect pitch in this segment using YIN algorithm
+        f0 = librosa.yin(segment, fmin=27.5, fmax=4186, sr=sample_rate)
+        
+        # Get median frequency (more stable than mean)
+        median_freq = np.median(f0[f0 > 0]) if len(f0[f0 > 0]) > 0 else 0
+        
+        # Convert to note
+        note = freq_to_note(median_freq)
+        
+        if note:
+            detected_notes.append({
+                'note': note['name'],
+                'midi': note['midi'],
+                'frequency': median_freq,
+                'start_time': start_time,
+                'duration': end_time - start_time
+            })
+    
+    # Merge consecutive identical notes that are close together
+    merged_notes = merge_consecutive_notes(detected_notes)
+    
+    return merged_notes
+
+
+def merge_consecutive_notes(notes, time_threshold=0.15):
+    """
+    Merge consecutive identical notes that are close in time
+    """
+    if not notes:
+        return []
+    
+    merged = [notes[0].copy()]
+    
+    for note in notes[1:]:
+        last_note = merged[-1]
+        
+        # If same note and close in time, extend duration
+        if (note['note'] == last_note['note'] and 
+            note['start_time'] - (last_note['start_time'] + last_note['duration']) < time_threshold):
+            # Extend the last note's duration
+            merged[-1]['duration'] = note['start_time'] + note['duration'] - last_note['start_time']
+        else:
+            # Different note or too far apart, add as new
+            merged.append(note.copy())
+    
+    return merged
+
+def calculate_score(detected_notes, target_notes=None):
+    """
+    Calculate score based on detected notes
+    For now, just returns basic info. You'll expand this to compare with target.
+    """
+    if not detected_notes:
+        return 0
+    
+    # Placeholder scoring - you'll improve this later
+    # For now, just return 100 if notes were detected
+    return 100 if len(detected_notes) > 0 else 0
+
+def analyze_music(file_path):
+    """
+    Main analysis function
+    """
+    try:
+        # Load audio file (converts to mono automatically)
+        y, sr = librosa.load(file_path, sr=22050)
+        
+        # Detect notes
+        notes = detect_notes(y, sr)
+        
+        # Calculate score
+        score = calculate_score(notes)
+        
+        # Format output
+        notes_simple = [
+            {
+                'note': n['note'],
+                'start': round(n['start_time'], 2),
+                'duration': round(n['duration'], 2)
+            }
+            for n in notes
+        ]
+        
+        return {
+            'score': score,
+            'notes': notes_simple,
+            'total_notes': len(notes)
+        }
+    
+    except Exception as e:
+        return {
+            'error': str(e),
+            'score': 0,
+            'notes': []
+        }
