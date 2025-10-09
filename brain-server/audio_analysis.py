@@ -44,10 +44,12 @@ def freq_to_note(frequency):
     return None
 
 
-def detect_notes(audio_data, sample_rate):
+def detect_notes(audio_data, sample_rate, min_db=-30):
     """
     Detect notes over time using onset detection and pitch tracking
     Returns list of detected notes with timestamps
+    
+    min_db: Minimum volume threshold in decibels (default -40dB)
     """
     # Detect note onsets (when notes start)
     onset_frames = librosa.onset.onset_detect(
@@ -55,12 +57,12 @@ def detect_notes(audio_data, sample_rate):
         sr=sample_rate, 
         units='frames',
         backtrack=True,
-        wait=10,  # Minimum frames between onsets (reduces sensitivity)
+        wait=10,
         pre_max=20,
         post_max=20,
         pre_avg=100,
         post_avg=100,
-        delta=0.2  # Higher = less sensitive
+        delta=0.2
     )
     onset_times = librosa.frames_to_time(onset_frames, sr=sample_rate)
     
@@ -79,7 +81,15 @@ def detect_notes(audio_data, sample_rate):
         end_sample = int(end_time * sample_rate)
         segment = audio_data[start_sample:end_sample]
         
-        if len(segment) < 512:  # Skip very short segments
+        if len(segment) < 512:
+            continue
+        
+        # Check volume/amplitude - skip if too quiet
+        rms = librosa.feature.rms(y=segment)[0]
+        avg_rms = np.mean(rms)
+        db = librosa.amplitude_to_db(np.array([avg_rms]))[0]
+        
+        if db < min_db:  # Too quiet, skip
             continue
         
         # Detect pitch in this segment using YIN algorithm
@@ -97,7 +107,8 @@ def detect_notes(audio_data, sample_rate):
                 'midi': note['midi'],
                 'frequency': median_freq,
                 'start_time': start_time,
-                'duration': end_time - start_time
+                'duration': end_time - start_time,
+                'volume_db': float(db)  # Include volume for debugging
             })
     
     # Merge consecutive identical notes that are close together
