@@ -5,6 +5,7 @@ import librosa
 import base64
 import io
 import soundfile as sf
+from scipy import signal
 
 # Piano note frequencies (A0 to C8 - 88 keys)
 def get_piano_notes():
@@ -49,192 +50,152 @@ def freq_to_note(frequency):
     return None
 
 
+# (Your get_piano_notes() and freq_to_note() functions remain the same)
+
 class StreamingNoteDetector:
-    def __init__(self, sample_rate=22050, buffer_duration=3.0, min_db=-30):
-        """
-        Initialize streaming note detector
-        
-        sample_rate: Audio sample rate
-        buffer_duration: How many seconds of audio to keep in buffer
-        min_db: Minimum volume threshold in decibels (default -30dB)
-        """
+    def __init__(self, sample_rate=22050, buffer_duration=1.5, min_db=-38):
         self.sample_rate = sample_rate
         self.buffer_duration = buffer_duration
         self.min_db = min_db
-        
-        # Rolling audio buffer (keeps last N seconds)
         self.max_buffer_samples = int(sample_rate * buffer_duration)
         self.audio_buffer = np.array([], dtype=np.float32)
-        
-        # Track detected notes to avoid duplicates
         self.detected_notes = []
-        self.last_processed_time = 0  # Track what we've already processed
-        self.total_audio_duration = 0  # Track total time processed
+        self.last_processed_time = 0
+        self.total_audio_duration = 0
         
+        # ## NEW: Define a fixed size for analysis frames.
+        # This is the key to stability. 4096 samples = ~185ms.
+        self.analysis_frame_size = 4096
+        self.min_segment_size = 2048
+
     def add_audio_chunk(self, audio_chunk):
-        """
-        Add new audio chunk to buffer and detect notes
-        
-        audio_chunk: numpy array of audio samples
-        Returns: list of newly detected notes
-        """
-        # Append new chunk to buffer
         self.audio_buffer = np.concatenate([self.audio_buffer, audio_chunk])
-        
-        # Update total duration
         chunk_duration = len(audio_chunk) / self.sample_rate
         self.total_audio_duration += chunk_duration
-        
-        # Trim buffer if too long (keep only last buffer_duration seconds)
+
         if len(self.audio_buffer) > self.max_buffer_samples:
             excess = len(self.audio_buffer) - self.max_buffer_samples
             self.audio_buffer = self.audio_buffer[excess:]
-            # Update last_processed_time when we trim
             buffer_start_time = self.total_audio_duration - self.buffer_duration
             if self.last_processed_time < buffer_start_time:
                 self.last_processed_time = buffer_start_time
-        
-        # Detect notes in current buffer
+
         new_notes = self._detect_notes_in_buffer()
-        
         return new_notes
-    
+
     def _detect_notes_in_buffer(self):
-        """Detect notes in the current buffer"""
-        if len(self.audio_buffer) < 2048:  # Need minimum samples
+        if len(self.audio_buffer) < self.analysis_frame_size:
             return []
-        
-        # Calculate buffer start time (relative to total audio)
+
         buffer_start_time = max(0, self.total_audio_duration - self.buffer_duration)
-        
-        # Detect note onsets (when notes start)
+
         try:
             onset_frames = librosa.onset.onset_detect(
-                y=self.audio_buffer,
-                sr=self.sample_rate,
-                units='frames',
-                backtrack=True,
-                wait=10,
-                pre_max=20,
-                post_max=20,
-                pre_avg=100,
-                post_avg=100,
-                delta=0.2
+                y=self.audio_buffer, sr=self.sample_rate,
+                units='frames', backtrack=True, delta=0.25, wait=4
             )
-        except Exception as e:
+        except Exception:
             return []
-        
-        if len(onset_frames) == 0:
+
+        if not onset_frames.any():
             return []
-        
-        onset_times = librosa.frames_to_time(onset_frames, sr=self.sample_rate)
-        
-        # Convert to absolute time
-        onset_times = onset_times + buffer_start_time
-        
-        # Add end time
-        onset_times = np.append(onset_times, self.total_audio_duration)
-        
-        new_notes = []
-        
-        # Analyze each segment between onsets
-        for i in range(len(onset_times) - 1):
-            start_time = onset_times[i]
-            end_time = onset_times[i + 1]
             
-            # Skip if we've already processed this time range
+        onset_times = librosa.frames_to_time(onset_frames, sr=self.sample_rate)
+        onset_times = onset_times + buffer_start_time
+        new_notes = []
+
+        for i, start_time in enumerate(onset_times):
+            # Define the duration based on the next onset, or the end of the buffer
+            end_time = onset_times[i+1] if i+1 < len(onset_times) else self.total_audio_duration
+
             if start_time < self.last_processed_time:
                 continue
+
+            start_sample = int((start_time - buffer_start_time) * self.sample_rate)
             
-            # Calculate sample indices relative to buffer
-            start_time_in_buffer = start_time - buffer_start_time
-            end_time_in_buffer = end_time - buffer_start_time
+            # ## NEW: Create a fixed-size frame for analysis
+            # We grab a snapshot right after the note starts.
+            if start_sample + self.analysis_frame_size > len(self.audio_buffer):
+                continue # Not enough audio data after this onset yet
+
+            analysis_frame = self.audio_buffer[start_sample : start_sample + self.analysis_frame_size]
+
+            rms = np.mean(librosa.feature.rms(y=analysis_frame))
+            if rms < 0.01: continue
             
-            start_sample = int(start_time_in_buffer * self.sample_rate)
-            end_sample = int(end_time_in_buffer * self.sample_rate)
-            
-            # Ensure indices are within buffer bounds
-            start_sample = max(0, start_sample)
-            end_sample = min(len(self.audio_buffer), end_sample)
-            
-            if start_sample >= end_sample or end_sample - start_sample < 512:
-                continue
-            
-            segment = self.audio_buffer[start_sample:end_sample]
-            
-            # Check volume/amplitude - skip if too quiet
-            rms = librosa.feature.rms(y=segment)[0]
-            avg_rms = np.mean(rms)
-            db = librosa.amplitude_to_db(np.array([avg_rms]))[0]
-            
-            if db < self.min_db:  # Too quiet, skip
-                continue
-            
-            # Detect pitch in this segment using YIN algorithm
-            try:
-                f0 = librosa.yin(segment, fmin=27.5, fmax=4186, sr=self.sample_rate)
-            except Exception as e:
-                continue
-            
-            # Get median frequency (more stable than mean)
-            valid_f0 = f0[f0 > 0]
-            if len(valid_f0) == 0:
-                continue
+            db = librosa.amplitude_to_db(np.array([rms]), ref=np.max)[0]
+            if db < self.min_db: continue
+
+            spectral_flatness = np.mean(librosa.feature.spectral_flatness(y=analysis_frame))
+            if spectral_flatness > 0.05: continue
                 
-            median_freq = np.median(valid_f0)
+            detected_freq = self._detect_pitch_robust(analysis_frame)
+            if not detected_freq: continue
             
-            # Convert to note
-            note = freq_to_note(median_freq)
+            note = freq_to_note(detected_freq)
+            if not note: continue
+
+            note_data = {
+                'note': note['name'], 'midi': note['midi'], 'frequency': float(detected_freq),
+                'start_time': float(start_time), 'duration': float(end_time - start_time),
+                'volume_db': float(db)
+            }
             
-            if note:
-                note_data = {
-                    'note': note['name'],
-                    'midi': note['midi'],
-                    'frequency': float(median_freq),
-                    'start_time': float(start_time),
-                    'duration': float(end_time - start_time),
-                    'volume_db': float(db)
-                }
-                
-                # Check if this is a duplicate or continuation of last note
-                if not self._is_duplicate_note(note_data):
-                    new_notes.append(note_data)
-                    self.detected_notes.append(note_data)
+            if not self._handle_note_logic(note_data):
+                new_notes.append(note_data)
+                self.detected_notes.append(note_data)
         
-        # Update last processed time to avoid re-processing
-        if len(onset_times) > 1:
-            self.last_processed_time = onset_times[-2]  # Second to last (last is end time)
-        
+        if len(new_notes) > 0:
+            self.last_processed_time = new_notes[-1]['start_time']
+
         return new_notes
+
+    def _detect_pitch_robust(self, segment):
+        # All analysis functions now use a fixed n_fft/frame_length because the input is a fixed size
+        n_fft = 2048
+        try:
+            f0_yin = librosa.yin(
+                segment, fmin=librosa.note_to_hz('A1'), fmax=librosa.note_to_hz('C7'),
+                sr=self.sample_rate, frame_length=n_fft
+            )
+            f0_yin = f0_yin[f0_yin > 0]
+            if len(f0_yin) == 0: return None
+            
+            median_freq_yin = float(np.median(f0_yin))
+            
+            # Secondary check with HPS
+            D = np.abs(librosa.stft(segment, n_fft=n_fft))
+            harmonics = 5
+            D_hps = D.copy()
+            for h in range(2, harmonics + 1):
+                downsampled = D[::h]
+                D_hps[:len(downsampled)] *= downsampled
+            freqs = librosa.fft_frequencies(sr=self.sample_rate, n_fft=n_fft)
+            f0_hps = freqs[np.argmax(D_hps)]
+
+            # Combine results
+            ratio = f0_hps / median_freq_yin if median_freq_yin > 0 else 0
+            if 0.85 < ratio < 1.15: return (0.5 * median_freq_yin + 0.5 * f0_hps)
+            return median_freq_yin
+        except Exception:
+            return None
     
-    def _is_duplicate_note(self, new_note, time_threshold=0.05):
-        """
-        Check if note is duplicate of recently detected note
-        Only merge if notes are VERY close in time (within 50ms)
-        This allows repeated notes to be detected separately
-        """
+    def _handle_note_logic(self, new_note):
         if not self.detected_notes:
             return False
         
         last_note = self.detected_notes[-1]
+        time_diff = new_note['start_time'] - last_note['start_time']
         
-        # Calculate the gap between the end of last note and start of new note
-        gap = new_note['start_time'] - (last_note['start_time'] + last_note['duration'])
-        
-        # Only merge if same note AND gap is tiny (< 50ms)
-        # This means it's truly a continuation, not a repeated note
-        if (new_note['note'] == last_note['note'] and 
-            gap >= 0 and gap < time_threshold):
-            # Update the last note's duration instead of adding new one
-            self.detected_notes[-1]['duration'] = new_note['start_time'] + new_note['duration'] - last_note['start_time']
+        # Simple refractory period: if a new note is detected too soon, ignore it.
+        if time_diff < 0.1: # 100ms
             return True
-        
+            
         return False
-    
-    def get_all_notes(self):
-        """Return all detected notes so far"""
-        return self.detected_notes
 
+    def get_all_notes(self):
+        return self.detected_notes
+    
 
 def decode_audio_chunk(base64_audio):
     """
@@ -268,7 +229,7 @@ def main():
     Reads JSON messages from stdin, processes audio chunks, outputs results
     """
     # Initialize with same parameters as recording version
-    detector = StreamingNoteDetector(sample_rate=22050, buffer_duration=3.0, min_db=-30)
+    detector = StreamingNoteDetector(sample_rate=22050, buffer_duration=3.0, min_db=-40)
     
     # Send ready signal
     print(json.dumps({'status': 'ready'}), flush=True)
@@ -318,7 +279,7 @@ def main():
             
             elif data.get('type') == 'reset':
                 # Reset detector
-                detector = StreamingNoteDetector(sample_rate=22050, buffer_duration=3.0, min_db=-30)
+                detector = StreamingNoteDetector(sample_rate=22050, buffer_duration=3.0, min_db=-40)
                 print(json.dumps({'status': 'reset'}), flush=True)
         
         except json.JSONDecodeError:
