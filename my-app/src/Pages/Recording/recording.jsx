@@ -7,7 +7,10 @@ import TargetNotes from './components/TargetNotes';
 import './recording.css';
 
 const songToPlay = [
-    { name: 'C4' }, { name: 'C4' }, { name: 'G4' }, { name: 'G4' }
+    { name: 'C4' }, { name: 'C4' }, { name: 'G4' }, { name: 'G4' },
+    { name: 'A4' }, { name: 'A4' }, { name: 'G4' }, { name: 'F4' },
+    { name: 'F4' }, { name: 'E4' }, { name: 'E4' }, { name: 'D4' },
+    { name: 'D4' }, { name: 'C4' }
 ];
 
 const Recording = () => {

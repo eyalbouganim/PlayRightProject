@@ -1,5 +1,7 @@
 const express = require('express');
 const WebSocket = require('ws');
+const health = require('./routes/health');
+const score = require('./routes/score');
 const config = require('./config/config');
 const audioController = require('./controllers/audioController');
 const logger = require('./utils/logger');
@@ -9,14 +11,14 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        activeSessions: audioController.getActiveSessionCount(),
-        timestamp: new Date().toISOString()
-    });
+// For now
+app.get('/', (req, res) => {
+  res.json({ message: 'Node Audio Server is running' });
 });
+
+// Routes
+app.use('/health', health);
+app.use('/score', score);
 
 // Create HTTP server
 const server = app.listen(config.server.port, () => {
@@ -72,3 +74,4 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 logger.info('Waiting for connections...');
+
