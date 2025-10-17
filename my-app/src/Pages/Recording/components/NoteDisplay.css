@@ -1,0 +1,56 @@
+/* src/Pages/Recording/components/NoteDisplay.css */
+.note-display {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.note-display h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.note-count {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.note-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.no-notes {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+}
+
+.note-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background-color: white;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.note-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #2196f3;
+    min-width: 60px;
+}
+
+.note-time {
+    color: #666;
+    font-size: 14px;
+}
+
+.note-duration {
+    color: #999;
+    font-size: 12px;
+}
