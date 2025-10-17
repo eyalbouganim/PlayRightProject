@@ -1,7 +1,8 @@
 // src/services/audioStreamService.js
+// This class manages real-time communication between React and the Node.js server
 class AudioStreamService {
     constructor() {
-        this.ws = null;
+        this.ws = null; // Web socket
         this.audioContext = null;
         this.processor = null;
         this.source = null;
@@ -86,7 +87,8 @@ class AudioStreamService {
     }
 
     /**
-     * Start recording audio
+     * Get permission to use the microphone, listen to the audio,
+     * and chop it into one-second chunks to be sent to the server
      */
     async startRecording() {
         try {
@@ -157,7 +159,8 @@ class AudioStreamService {
     }
 
     /**
-     * Send audio data as WAV
+     * Combines the small audio clips, packages them into a standard WAV file format,
+     * encodes that file into a text-safe format (Base64), and sends it over the WebSocket.
      */
     _sendAudioData(audioChunks, sampleRate) {
         try {

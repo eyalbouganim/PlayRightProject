@@ -1,5 +1,4 @@
 // src/Pages/Recording/components/NoteDisplay.jsx
-import React from 'react';
 import './NoteDisplay.css';
 
 const NoteDisplay = ({ notes }) => {

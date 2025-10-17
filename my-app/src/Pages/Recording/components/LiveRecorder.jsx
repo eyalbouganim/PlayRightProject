@@ -1,5 +1,4 @@
 // src/Pages/Recording/components/LiveRecorder.jsx
-import React from 'react';
 import { useAudioStream } from '../../../hooks/useAudioStream';
 import NoteDisplay from './NoteDisplay.jsx';
 import './LiveRecorder.css';
