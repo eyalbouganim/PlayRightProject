@@ -7,10 +7,7 @@ import TargetNotes from './components/TargetNotes';
 import './recording.css';
 
 const songToPlay = [
-    { name: 'C4' }, { name: 'C4' }, { name: 'G4' }, { name: 'G4' },
-    { name: 'A4' }, { name: 'A4' }, { name: 'G4' }, { name: 'F4' },
-    { name: 'F4' }, { name: 'E4' }, { name: 'E4' }, { name: 'D4' },
-    { name: 'D4' }, { name: 'C4' }
+    { name: 'C4' }, { name: 'C4' }, { name: 'G4' }, { name: 'G4' }
 ];
 
 const Recording = () => {
@@ -20,11 +17,9 @@ const Recording = () => {
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
     const [noteStatuses, setNoteStatuses] = useState(new Array(songToPlay.length).fill('pending'));
 
-    // ## THIS IS THE FIX (Part 1) ##
     // Add a state to count how many notes we've already processed.
     const [processedNotesCount, setProcessedNotesCount] = useState(0);
 
-    // ## THIS IS THE FIX (Part 2) ##
     // The comparison logic is now more robust.
     useEffect(() => {
         // Only run if there's a new, unprocessed note.
@@ -53,7 +48,6 @@ const Recording = () => {
 
     }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount]);
     
-    // ## THIS IS THE FIX (Part 3) ##
     // The reset function must also reset our new counter.
     const handleReset = () => {
         audioStream.reset();
