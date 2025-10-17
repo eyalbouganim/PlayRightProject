@@ -1,50 +1,39 @@
 // src/Pages/Recording/components/LiveRecorder.jsx
-import { useAudioStream } from '../../../hooks/useAudioStream';
-import NoteDisplay from './NoteDisplay.jsx';
+
+import React from 'react';
+import NoteDisplay from './NoteDisplay.jsx'; // ## NEW: Re-import NoteDisplay ##
 import './LiveRecorder.css';
 
-const LiveRecorder = () => {
-    const {
-        isConnected,
-        isRecording,
-        status,
-        notes,
-        error,
-        connect,
-        startRecording,
-        stopRecording,
-        reset,
-        disconnect
-    } = useAudioStream();
-
-    const handleStart = async () => {
-        if (!isConnected) {
-            await connect();
-        }
-        await startRecording();
-    };
-
+const LiveRecorder = ({
+    isConnected, isRecording, status, error, notes, // ## NEW: Accept "notes" as a prop ##
+    connect, startRecording, stopRecording, reset, disconnect
+}) => {
+    
     return (
         <div className="live-recorder">
             <div className="recorder-header">
-                <h2>Live Piano Note Detection</h2>
+                <h2>Controls</h2>
                 <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
                     {status}
                 </div>
             </div>
 
-            {error && (
-                <div className="error-message">
-                    ⚠️ {error}
-                </div>
-            )}
+            {error && <div className="error-message">⚠️ {error}</div>}
 
             <div className="controls">
-                {!isRecording ? (
+                {!isConnected ? (
+                    <button 
+                        className="btn btn-connect" 
+                        onClick={connect} 
+                        disabled={status.includes('Connecting')}
+                    >
+                        🔗 Connect to Server
+                    </button>
+                ) : !isRecording ? (
                     <button 
                         className="btn btn-start" 
-                        onClick={handleStart}
-                        disabled={isRecording}
+                        onClick={startRecording}
+                        disabled={!status.includes('Ready')}
                     >
                         🎤 Start Recording
                     </button>
@@ -59,22 +48,14 @@ const LiveRecorder = () => {
 
                 <button 
                     className="btn btn-reset" 
-                    onClick={reset}
+                    onClick={reset} 
                     disabled={!isConnected}
                 >
                     🔄 Reset
                 </button>
-
-                {isConnected && (
-                    <button 
-                        className="btn btn-disconnect" 
-                        onClick={disconnect}
-                    >
-                        ❌ Disconnect
-                    </button>
-                )}
             </div>
 
+            {/* ## NEW: Add the NoteDisplay component back in ## */}
             <NoteDisplay notes={notes} />
         </div>
     );
