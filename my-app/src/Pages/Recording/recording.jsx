@@ -57,7 +57,7 @@ const Recording = () => {
          const formData = new FormData();
          formData.append('audioFile', audioBlob, 'performance.webm'); // Send as webm
          formData.append('songId', 'twinkle_twinkle');
-         fetch('http://localhost:3001/api/score', { method: 'POST', body: formData })
+         fetch('http://localhost:3001/api/performances', { method: 'POST', body: formData })
          .then(response => response.json())
          .then(data => {
              console.log('Score received:', data);

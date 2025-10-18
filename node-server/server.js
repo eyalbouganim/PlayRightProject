@@ -1,7 +1,7 @@
 const express = require('express');
 const WebSocket = require('ws');
 const health = require('./routes/health');
-const score = require('./routes/score');
+const performances = require('./routes/performances');
 const config = require('./config/config');
 const audioController = require('./controllers/audioController');
 const logger = require('./utils/logger');
@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/health', health);
-app.use('/api/score', score);
+app.use('/api/performances', performances);
 
 // Define server and wss here so they are accessible by the shutdown function
 let server;

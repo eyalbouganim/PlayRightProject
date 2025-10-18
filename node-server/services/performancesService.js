@@ -1,4 +1,4 @@
-// src/services/scoreService.js
+// src/services/performancesService.js
 
 const calculate = (correctNotes, playedNotes) => {
     let mistakes = 0;
