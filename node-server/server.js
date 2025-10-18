@@ -6,6 +6,12 @@ const config = require('./config/config');
 const audioController = require('./controllers/audioController');
 const logger = require('./utils/logger');
 
+// Import the database connection instance
+const sequelize = require('./config/database'); 
+// Import your models here so Sequelize knows about them
+const User = require('./models/userModel');
+// (Add other models like Song, Performance here as you create them)
+
 const app = express();
 
 // Middleware
@@ -13,44 +19,68 @@ app.use(express.json());
 
 // For now
 app.get('/', (req, res) => {
-  res.json({ message: 'Node Audio Server is running' });
+    res.json({ message: 'Node Audio Server is running' });
 });
 
 // Routes
 app.use('/health', health);
 app.use('/score', score);
 
-// Create HTTP server
-const server = app.listen(config.server.port, () => {
-    logger.server(`Server running on http://${config.server.host}:${config.server.port}`);
-    logger.audio('WebSocket ready for audio streaming');
-});
+// Define server and wss here so they are accessible by the shutdown function
+let server;
+let wss;
 
-// Create WebSocket server
-const wss = new WebSocket.Server({ server });
+// Create an async function to start the server
+const startServer = async () => {
+    try {
+        // It connects to the DB and creates/alters tables to match your models.
+        await sequelize.sync({ alter: true });
+        logger.success('✔️ All models were synchronized successfully.');
 
-// Handle WebSocket connections
-wss.on('connection', (ws) => {
-    audioController.handleConnection(ws);
-});
+        // Create HTTP server
+        server = app.listen(config.server.port, () => {
+            logger.server(`Server running on http://${config.server.host}:${config.server.port}`);
+            logger.audio('WebSocket ready for audio streaming');
+        });
+
+        // Create WebSocket server
+        wss = new WebSocket.Server({ server });
+
+        // Handle WebSocket connections
+        wss.on('connection', (ws) => {
+            audioController.handleConnection(ws);
+        });
+
+        logger.info('Waiting for connections...');
+
+    } catch (error) {
+        logger.error('❌ Unable to sync models with the database:', error);
+        process.exit(1); // Exit if DB sync fails
+    }
+};
 
 // Graceful shutdown
 const shutdown = () => {
     logger.info('Shutting down server...');
     
     // Close WebSocket server
-    wss.clients.forEach(client => {
-        client.close();
-    });
+    if (wss) { // Check if wss was initialized
+        wss.clients.forEach(client => {
+            client.close();
+        });
+    }
     
     // Cleanup sessions
     audioController.cleanup();
     
     // Close HTTP server
-    server.close(() => {
-        logger.success('Server closed gracefully');
-        process.exit(0);
-    });
+    if (server) { // Check if server was initialized
+        server.close(() => {
+            logger.success('Server closed gracefully');
+            sequelize.close(); // NEW: Close the database connection
+            process.exit(0);
+        });
+    }
     
     // Force exit after 10 seconds
     setTimeout(() => {
@@ -73,5 +103,5 @@ process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled rejection at:', promise, 'reason:', reason);
 });
 
-logger.info('Waiting for connections...');
-
+// Start the server
+startServer();
