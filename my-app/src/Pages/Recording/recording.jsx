@@ -1,7 +1,6 @@
-// src/Pages/Recording/Recording.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useAudioStream } from '../../hooks/useAudioStream';
+import { useAudioRecorder } from '../../hooks/useAudioRecorder'; // Your recorder hook
 import LiveRecorder from './components/LiveRecorder';
 import TargetNotes from './components/TargetNotes';
 import './recording.css';
@@ -14,51 +13,107 @@ const songToPlay = [
 ];
 
 const Recording = () => {
-    const audioStream = useAudioStream();
-    const { notes: detectedNotes, isRecording } = audioStream;
+    // Hook 1: For live streaming notes
+    const streamHook = useAudioStream();
+    
+    // Hook 2: For recording the full file. It now manages its own stream.
+    const recorderHook = useAudioRecorder(); 
 
+    const { notes: detectedNotes, isRecording } = streamHook;
+
+    // Game state (unchanged)
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
     const [noteStatuses, setNoteStatuses] = useState(new Array(songToPlay.length).fill('pending'));
-
-    // Add a state to count how many notes we've already processed.
     const [processedNotesCount, setProcessedNotesCount] = useState(0);
+    const [isScoring, setIsScoring] = useState(false);
+    const [playbackUrl, setPlaybackUrl] = useState(null);
 
-    // The comparison logic is now more robust.
+    // Live comparison logic (unchanged)
     useEffect(() => {
-        // Only run if there's a new, unprocessed note.
         if (!isRecording || detectedNotes.length <= processedNotesCount || currentTargetNoteIndex >= songToPlay.length) {
             return;
         }
-
-        // Get the next unprocessed note, not just the last one.
+        // ... (comparison logic is the same) ...
         const nextNoteToProcess = detectedNotes[processedNotesCount];
         const targetNote = songToPlay[currentTargetNoteIndex];
-
-        // Compare the new note to the target note.
         if (nextNoteToProcess.note === targetNote.name) {
-            const newStatuses = [...noteStatuses];
-            newStatuses[currentTargetNoteIndex] = 'correct';
-            setNoteStatuses(newStatuses);
-            setCurrentTargetNoteIndex(prevIndex => prevIndex + 1);
+             const newStatuses = [...noteStatuses];
+             newStatuses[currentTargetNoteIndex] = 'correct';
+             setNoteStatuses(newStatuses);
+             setCurrentTargetNoteIndex(prevIndex => prevIndex + 1);
         } else {
-            const newStatuses = [...noteStatuses];
-            newStatuses[currentTargetNoteIndex] = 'incorrect';
-            setNoteStatuses(newStatuses);
+             const newStatuses = [...noteStatuses];
+             newStatuses[currentTargetNoteIndex] = 'incorrect';
+             setNoteStatuses(newStatuses);
         }
-
-        // "Consume" the note by incrementing the counter.
         setProcessedNotesCount(prevCount => prevCount + 1);
+    }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses]);
 
-    }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount]);
+    // Scoring Logic (unchanged)
+    const submitForScoring = (audioBlob) => {
+        console.log('Submitting audio for scoring...', audioBlob);
+        setIsScoring(true);
+        // ... (fetch logic is the same) ...
+         const formData = new FormData();
+         formData.append('audioFile', audioBlob, 'performance.webm'); // Send as webm
+         formData.append('songId', 'twinkle_twinkle');
+         fetch('http://localhost:3001/api/score', { method: 'POST', body: formData })
+         .then(response => response.json())
+         .then(data => {
+             console.log('Score received:', data);
+             setIsScoring(false);
+             alert(`Your score: ${data.overallScore}%`);
+         })
+         .catch(err => {
+             console.error('Error submitting score:', err);
+             setIsScoring(false);
+             alert('Error submitting score.');
+         });
+    };
     
-    // The reset function must also reset our new counter.
-    const handleReset = () => {
-        audioStream.reset();
+    // Playback and Submission Logic (unchanged)
+    useEffect(() => {
+        if (recorderHook.audioBlob) {
+            const url = URL.createObjectURL(recorderHook.audioBlob);
+            setPlaybackUrl(url);
+            submitForScoring(recorderHook.audioBlob);
+        }
+        // Cleanup function
+        return () => {
+            if (playbackUrl) {
+                URL.revokeObjectURL(playbackUrl);
+            }
+        };
+    }, [recorderHook.audioBlob]); // Dependency array is correct
+
+    // --- Wrapped Control Functions ---
+    // These now simply call the respective hook functions
+    const handleStart = async () => {
+        setPlaybackUrl(null); 
         setCurrentTargetNoteIndex(0);
         setNoteStatuses(new Array(songToPlay.length).fill('pending'));
-        setProcessedNotesCount(0); // Reset the processed notes counter.
+        setProcessedNotesCount(0);
+        
+        await streamHook.startRecording();  // Start live feedback stream
+        recorderHook.startFullRecording(); // Start full recording
     };
 
+    const handleStop = () => {
+        streamHook.stopRecording();      // Stop live feedback stream
+        recorderHook.stopFullRecording(); // Stop full recording (will trigger blob creation)
+    };
+
+    const handleReset = () => {
+        streamHook.reset();
+        recorderHook.stopFullRecording(); // Ensure recorder stops if it was running
+        setCurrentTargetNoteIndex(0);
+        setNoteStatuses(new Array(songToPlay.length).fill('pending'));
+        setProcessedNotesCount(0);
+        setIsScoring(false);
+        setPlaybackUrl(null);
+    };
+
+    // --- Render ---
     return (
         <div className="recording-page">
             <TargetNotes
@@ -67,16 +122,33 @@ const Recording = () => {
                 currentTargetNoteIndex={currentTargetNoteIndex}
             />
             
+            {/* Pass only the necessary props from streamHook, plus the wrapped functions */}
             <LiveRecorder 
-                {...audioStream} 
-                reset={handleReset} 
+                isConnected={streamHook.isConnected}
+                isRecording={streamHook.isRecording} // Controls the button display
+                status={streamHook.status}
                 notes={detectedNotes}
+                error={streamHook.error || recorderHook.recorderError} // Show errors from either hook
+                connect={streamHook.connect}
+                startRecording={handleStart} // Pass the wrapped start
+                stopRecording={handleStop}   // Pass the wrapped stop
+                reset={handleReset} 
+                disconnect={streamHook.disconnect} 
             />
             
-            {currentTargetNoteIndex >= songToPlay.length && (
-                <div className="completion-message">
-                    <h2>🎉 Well Done! 🎉</h2>
-                </div>
+            {/* Completion Message (unchanged) */}
+            {currentTargetNoteIndex >= songToPlay.length && !isRecording && (
+                 <div className="completion-message"><h2>🎉 Well Done! 🎉</h2></div>
+            )}
+
+            {/* Playback Container (unchanged) */}
+            {playbackUrl && (
+                 <div className="playback-container" style={{marginTop: '20px'}}>
+                     <h4>Listen to your performance:</h4>
+                     <audio src={playbackUrl} controls />
+                     {isScoring && <p>Calculating your score...</p>}
+                     <button /* ... download logic ... */>💾 Download Recording</button>
+                 </div>
             )}
         </div>
     );

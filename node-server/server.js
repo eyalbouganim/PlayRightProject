@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/health', health);
-app.use('/score', score);
+app.use('/api/score', score);
 
 // Define server and wss here so they are accessible by the shutdown function
 let server;
