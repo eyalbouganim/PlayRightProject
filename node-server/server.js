@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const WebSocket = require('ws');
 const health = require('./routes/health');
 const performances = require('./routes/performances');
@@ -13,6 +14,13 @@ const User = require('./models/userModel');
 // (Add other models like Song, Performance here as you create them)
 
 const app = express();
+
+// CORS setup to allow requests from your React app
+const corsOptions = {
+    origin: 'http://localhost:3002', // Allow requests ONLY from your React app
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());

@@ -50,25 +50,44 @@ const Recording = () => {
     }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses]);
 
     // Scoring Logic (unchanged)
-    const submitForScoring = (audioBlob) => {
+const submitForScoring = (audioBlob) => {
         console.log('Submitting audio for scoring...', audioBlob);
         setIsScoring(true);
-        // ... (fetch logic is the same) ...
-         const formData = new FormData();
-         formData.append('audioFile', audioBlob, 'performance.webm'); // Send as webm
-         formData.append('songId', 'twinkle_twinkle');
-         fetch('http://localhost:3001/api/performances', { method: 'POST', body: formData })
-         .then(response => response.json())
-         .then(data => {
-             console.log('Score received:', data);
-             setIsScoring(false);
-             alert(`Your score: ${data.overallScore}%`);
-         })
-         .catch(err => {
-             console.error('Error submitting score:', err);
-             setIsScoring(false);
-             alert('Error submitting score.');
-         });
+        const formData = new FormData();
+        formData.append('audioFile', audioBlob, 'performance.webm');
+        formData.append('songId', 'twinkle_twinkle');
+
+        fetch('http://localhost:3001/api/performances', { method: 'POST', body: formData })
+        .then(response => {
+            if (!response.ok) {
+                 throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Analysis result received in React:', data);
+            setIsScoring(false);
+
+            // ## THIS IS THE FIX ##
+            if (data && data.playedNotes) {
+                // Convert the playedNotes array to a nicely formatted JSON string for the alert
+                const notesString = JSON.stringify(data.playedNotes, null, 2); // null, 2 adds indentation
+                alert(`Analysis complete!\nDetected Notes:\n${notesString}`);
+                console.log("Played Notes:", data.playedNotes);
+            } else if (data && data.error) {
+                 alert(`Analysis Error: ${data.error}`);
+                 console.error("Analysis Error:", data.error);
+            }
+             else {
+                 alert('Received unexpected data format from server.');
+                 console.error('Unexpected data:', data);
+            }
+        })
+        .catch(err => {
+            console.error('Error submitting score:', err);
+            setIsScoring(false);
+            alert(`Error submitting score: ${err.message}`);
+        });
     };
     
     // Playback and Submission Logic (unchanged)
