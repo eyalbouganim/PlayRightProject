@@ -1,35 +1,71 @@
 // src/services/performancesService.js
 
-const calculate = (correctNotes, playedNotes) => {
-    let mistakes = 0;
-    let correctHits = 0;
-    
-    // We'll compare up to the length of the original song
-    for (let i = 0; i < correctNotes.length; i++) {
-        const targetNote = correctNotes[i];
-        const playedNote = playedNotes[i]; // Simple 1-to-1 comparison for now
+const { spawn } = require('child_process');
+const path = require('path');
+const logger = require('../utils/logger');
+const config = require('../config/config');
 
-        if (playedNote && playedNote.note === targetNote.name) {
-            correctHits++;
-        } else {
-            // This counts both wrong notes and missed notes as a mistake
-            mistakes++;
+const PYTHON_EXECUTABLE = config.python.executable;
+const ANALYSIS_SCRIPT_PATH = config.python.analysisScriptPath; 
+
+const analyze = (audioFilePath, songId) => {
+    return new Promise((resolve, reject) => {
+        logger.info(`Starting Python analysis for: ${audioFilePath}, Song: ${songId}`);
+        // Log the paths being used from config
+        logger.info(`Using Python executable: ${PYTHON_EXECUTABLE}`);
+        logger.info(`Using script: ${ANALYSIS_SCRIPT_PATH}`);
+
+        // Check if paths are defined
+        if (!PYTHON_EXECUTABLE || !ANALYSIS_SCRIPT_PATH) {
+            const errorMsg = "Python executable or analysis script path not defined in config.";
+            logger.error(errorMsg);
+            return reject(new Error(errorMsg));
         }
-    }
 
-    // Calculate the final score as a percentage of correct notes
-    const noteScore = (correctHits / correctNotes.length) * 100;
+        const scriptArgs = [
+            ANALYSIS_SCRIPT_PATH,
+            '--audio-path', audioFilePath,
+            '--song-id', songId
+        ];
 
-    // Return a structured result object
-    return {
-        noteScore: Math.round(noteScore),
-        mistakes,
-        notesAttempted: playedNotes.length,
-        notesTotal: correctNotes.length
-    };
+        const pythonProcess = spawn(PYTHON_EXECUTABLE, scriptArgs);
+
+        let stdoutData = '';
+        let stderrData = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            stdoutData += data.toString();
+        });
+        pythonProcess.stderr.on('data', (data) => {
+            stderrData += data.toString();
+        });
+        pythonProcess.on('close', (code) => {
+            logger.info(`Python script finished with exit code ${code}`);
+            if (stderrData) {
+                logger.error(`Python script stderr: ${stderrData}`);
+            }
+            if (code === 0 && stdoutData) {
+                try {
+                    const result = JSON.parse(stdoutData);
+                    logger.success('Successfully parsed analysis result from Python script.');
+                    resolve(result); 
+                } catch (parseError) {
+                    logger.error(`Failed to parse JSON output from Python: ${stdoutData}`);
+                    reject(new Error(`Failed to parse analysis result: ${parseError.message}`));
+                }
+            } else {
+                const errorMessage = `Python script execution failed (code ${code || 'unknown'})` + (stderrData ? `: ${stderrData}` : '');
+                 logger.error(errorMessage);
+                reject(new Error(errorMessage));
+            }
+        });
+        pythonProcess.on('error', (spawnError) => {
+            logger.error('Failed to start Python process:', spawnError);
+            reject(new Error(`Failed to start analysis script: ${spawnError.message}`));
+        });
+    });
 };
 
-// Export the function so the controller can use it
-export default {
-    calculate
+module.exports = {
+    analyze 
 };
