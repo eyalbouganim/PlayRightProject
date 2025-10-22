@@ -43,15 +43,7 @@ const analyzePerformance = async (req, res) => {
     } catch (error) {
         logger.error('Error analyzing performance:', error);
         res.status(500).json({ error: 'Error analyzing performance' });
-    } finally {
-        // 6. Important - clean up the uploaded file after processing
-        fs.unlink(audioFilePath, (err) => {
-            if (err) logger.error('Error deleting uploaded audio file:', err);
-            else logger.success('Uploaded audio file deleted successfully');
-        })
-    }
-
-
+    } 
 }
 
 module.exports = {

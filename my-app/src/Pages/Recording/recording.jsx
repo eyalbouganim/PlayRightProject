@@ -68,7 +68,6 @@ const submitForScoring = (audioBlob) => {
             console.log('Analysis result received in React:', data);
             setIsScoring(false);
 
-            // ## THIS IS THE FIX ##
             if (data && data.playedNotes) {
                 // Convert the playedNotes array to a nicely formatted JSON string for the alert
                 const notesString = JSON.stringify(data.playedNotes, null, 2); // null, 2 adds indentation

@@ -166,14 +166,11 @@ if __name__ == "__main__":
             'totalNotesDetected': len(played_notes_output)
         }
 
-    # --- Error Handling ---
+    # Error Handling
     except Exception as e:
         error_message = f"Error during analysis: {str(e)}"
         print(error_message, file=sys.stderr) # Print error to stderr
         output = {'error': error_message}
-        # Consider exiting with non-zero code on critical failure
-        # sys.exit(1)
 
-    # --- Final JSON Output ---
     # Print the result dictionary as a JSON string to stdout
-    print(json.dumps(output, indent=2)) # Added indent=2 for slightly nicer formatting if viewed directly
+    print(json.dumps(output, indent=2))

@@ -7,7 +7,8 @@ const dbHost = 'localhost';
 
 const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
     host: dbHost,
-    dialect: 'postgres' // Tell Sequelize we're using PostgreSQL
+    dialect: 'postgres', // Tell Sequelize we're using PostgreSQL
+    logging: false, // Disable logging; default: console.log
 });
 
 // Test the connection

@@ -18,7 +18,7 @@ const ANALYSIS_SCRIPT_PATH = config.python.analysisScriptPath;
 const convertToWav = (inputFilePath) => {
     return new Promise((resolve, reject) => {
         const outputFilePath = inputFilePath.replace(path.extname(inputFilePath), '.wav');
-        const ffmpegCommand = `ffmpeg -i "${inputFilePath}" -y "${outputFilePath}"`;
+        const ffmpegCommand = `ffmpeg -i "${inputFilePath}" -y -loglevel error "${outputFilePath}"`;
 
         logger.info(`Converting to WAV: ${ffmpegCommand}`);
 
@@ -74,7 +74,7 @@ const analyzePerformance = async (audioFilePath, songId) => { // Renamed this fu
 
             pythonProcess.on('close', (code) => {
                 logger.info(`Python script finished with exit code ${code}`);
-                if (stderrData) { logger.error(`Python script stderr: ${stderrData}`); }
+                if (stderrData) { logger.info(`Python script stderr: ${stderrData}`); }
 
                 if (code === 0 && stdoutData) {
                     try {
