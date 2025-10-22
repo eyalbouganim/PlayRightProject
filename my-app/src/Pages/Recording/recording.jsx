@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAudioStream } from '../../hooks/useAudioStream';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder'; // Your recorder hook
 import LiveRecorder from './components/LiveRecorder';
-import TargetNotes from './components/TargetNotes';
+// import TargetNotes from './components/TargetNotes';
+import SheetMusicDisplay from './components/SheetMusicDisplay';
 import './recording.css';
 
 const songToPlay = [
@@ -134,10 +135,15 @@ const submitForScoring = (audioBlob) => {
     // --- Render ---
     return (
         <div className="recording-page">
-            <TargetNotes
+            {/* <TargetNotes
                 song={songToPlay}
                 noteStatuses={noteStatuses}
                 currentTargetNoteIndex={currentTargetNoteIndex}
+            /> */}
+
+            <SheetMusicDisplay
+                currentTargetNoteIndex={currentTargetNoteIndex}
+                noteStatuses={noteStatuses}
             />
             
             {/* Pass only the necessary props from streamHook, plus the wrapped functions */}

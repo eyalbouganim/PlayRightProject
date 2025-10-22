@@ -1,37 +1,117 @@
-.playback-container {
-    margin-top: 30px;
-    padding: 20px;
-    background-color: #f5f5f5;
-    border-radius: 10px;
-    border: 2px solid #4CAF50;
-    text-align: center;
+/* src/Pages/Recording/recording.css */
+
+/* Main Page Container */
+.recording-page {
+  display: flex;
+  position: relative; /* Generally not needed for centering, check if necessary */
+  flex-wrap: wrap; 
+  gap: 25px; 
+  padding: 50px;
+  /* CHANGE THIS LINE: Use a specific max-width */
+  max-width: 1200px; /* Or 90%, or another fixed value */
+  /* This line now works correctly with the max-width above */
+  margin: 0 auto; /* Center horizontally */
+  background-color: #f7f9fc; 
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
-.playback-container h3 {
-    margin-bottom: 15px;
+/* Sheet Music Container */
+.sheet-music-display-container {
+  flex: 3; /* Allow sheet music to take more space (approx 60%) */
+  min-width: 450px; /* Ensure it has enough space */
+  padding: 15px;
+  background-color: #ffffff; /* White background */
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Live Recorder (Controls) Container */
+.live-recorder {
+  flex: 2; /* Allow controls to take less space (approx 40%) */
+  min-width: 300px;
+  padding: 15px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex; /* Use flexbox internally for better control alignment */
+  flex-direction: column;
+  gap: 15px; /* Space between header, controls, notes */
+}
+
+/* Completion Message */
+.completion-message {
+  flex-basis: 100%; /* Take full width on a new line */
+  text-align: center;
+  padding: 20px;
+  background-color: #e6ffed; /* Light green background */
+  border: 1px solid #b7e4c7;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+/* Playback Container */
+.playback-container {
+  flex-basis: 100%; /* Take full width on a new line */
+  margin-top: 15px;
+  padding: 20px;
+  background-color: #f8f9fa; /* Slightly different background */
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.playback-container h4 { /* Adjusted from h3 for consistency if needed */
+  margin-bottom: 15px;
+  color: #333;
 }
 
 .playback-audio {
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 10px;
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 15px;
 }
 
 .scoring-message {
-    color: #666;
-    font-style: italic;
+  color: #007bff; /* Blue color for info */
+  font-style: italic;
+  margin-top: 10px;
 }
 
 .btn-download {
-    margin-top: 10px;
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #28a745; /* Green */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .btn-download:hover {
-    background-color: #45a049;
+  background-color: #218838; /* Darker green */
+}
+
+/* Specific styles within LiveRecorder (if needed) */
+.live-recorder .recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.live-recorder .controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Space between buttons */
+    flex-wrap: wrap;
+}
+
+.live-recorder .note-display { /* Assuming NoteDisplay has this class */
+    margin-top: 15px;
+    /* Add specific styles for the note display area */
 }

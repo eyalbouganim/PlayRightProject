@@ -1,0 +1,9 @@
+.sheet-music-display-container {
+    width: 100%;
+    /* max-width: 800px; */ /* Optional: constrain width */
+    margin: 20px auto;
+    border: 1px solid #ddd;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    overflow-x: auto; /* Allow horizontal scrolling if music is wide */
+    background-color: white;
+}
