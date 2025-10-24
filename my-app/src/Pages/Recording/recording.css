@@ -1,6 +1,258 @@
 /* src/Pages/Recording/recording.css */
+
+/* Main Page Container */
 .recording-page {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 40px 20px;
+  display: flex;
+  position: relative;
+  flex-wrap: wrap; 
+  gap: 25px; 
+  padding: 50px;
+  max-width: 1400px; /* Increased for better space utilization */
+  margin: 0 auto; /* Center horizontally */
+  background-color: #f7f9fc; 
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Upload Section */
+.upload-section {
+  flex-basis: 100%; /* Take full width */
+  padding: 15px 20px;
+  background-color: #ffffff;
+  border: 2px dashed #007bff;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+  border-color: #0056b3;
+  background-color: #f0f8ff;
+}
+
+.upload-section label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+  font-size: 15px;
+}
+
+.upload-section input[type="file"] {
+  margin-left: 10px;
+  padding: 5px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.upload-section input[type="file"]::file-selector-button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.upload-section input[type="file"]::file-selector-button:hover {
+  background-color: #0056b3;
+}
+
+/* Sheet Music Container */
+.sheet-music-display-container {
+  flex: 3; /* Allow sheet music to take more space (approx 60%) */
+  min-width: 450px; /* Ensure it has enough space */
+  padding: 20px;
+  background-color: #ffffff; /* White background */
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sheet-music-display-container > div {
+  width: 100%;
+  overflow-x: auto; /* Allow horizontal scroll if sheet music is wide */
+}
+
+/* Live Recorder (Controls) Container */
+.live-recorder {
+  flex: 2; /* Allow controls to take less space (approx 40%) */
+  min-width: 300px;
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex; /* Use flexbox internally for better control alignment */
+  flex-direction: column;
+  gap: 15px; /* Space between header, controls, notes */
+}
+
+/* Completion Message */
+.completion-message {
+  flex-basis: 100%; /* Take full width on a new line */
+  text-align: center;
+  padding: 25px;
+  background-color: #e6ffed; /* Light green background */
+  border: 2px solid #b7e4c7;
+  border-radius: 8px;
+  margin-top: 15px;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.completion-message h2 {
+  margin: 0;
+  color: #2d6a4f;
+  font-size: 28px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Playback Container */
+.playback-container {
+  flex-basis: 100%; /* Take full width on a new line */
+  margin-top: 15px;
+  padding: 25px;
+  background-color: #f8f9fa; /* Slightly different background */
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.playback-container h4 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 20px;
+}
+
+.playback-container audio {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 15px;
+}
+
+.playback-container p {
+  color: #007bff; /* Blue color for info */
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.playback-container button {
+  margin-top: 15px;
+  padding: 12px 24px;
+  background-color: #28a745; /* Green */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.playback-container button:hover {
+  background-color: #218838; /* Darker green */
+  transform: translateY(-2px);
+}
+
+.playback-container button:active {
+  transform: translateY(0);
+}
+
+/* Specific styles within LiveRecorder */
+.live-recorder .recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.live-recorder .recorder-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.live-recorder .controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px; /* Space between buttons */
+  flex-wrap: wrap;
+}
+
+.live-recorder .note-display {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  min-height: 100px;
+}
+
+/* Error messages */
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+/* Status messages */
+.status-message {
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+.status-message.connected {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-message.disconnected {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recording-page {
+    padding: 20px;
+    gap: 15px;
+  }
+
+  .sheet-music-display-container,
+  .live-recorder {
+    flex: 1 1 100%; /* Stack vertically on small screens */
+    min-width: 100%;
+  }
+
+  .upload-section label {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .completion-message h2 {
+    font-size: 22px;
+  }
 }

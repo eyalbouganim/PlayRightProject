@@ -1,7 +1,8 @@
 const express = require('express');
+const cors = require('cors');
 const WebSocket = require('ws');
 const health = require('./routes/health');
-const score = require('./routes/score');
+const performances = require('./routes/performances');
 const config = require('./config/config');
 const audioController = require('./controllers/audioController');
 const logger = require('./utils/logger');
@@ -14,6 +15,13 @@ const User = require('./models/userModel');
 
 const app = express();
 
+// CORS setup to allow requests from your React app
+const corsOptions = {
+    origin: 'http://localhost:3002', // Allow requests ONLY from your React app
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+app.use(cors(corsOptions));
+
 // Middleware
 app.use(express.json());
 
@@ -24,7 +32,7 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/health', health);
-app.use('/score', score);
+app.use('/api/performances', performances);
 
 // Define server and wss here so they are accessible by the shutdown function
 let server;
