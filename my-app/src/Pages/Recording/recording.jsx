@@ -55,12 +55,16 @@ const Recording = () => {
 
     // State
     const [musicXML, setMusicXML] = useState(defaultMusicXML);
+    const [uploadedMusicXmlPath, setUploadedMusicXmlPath] = useState(null);
+    const [uploadedFileName, setUploadedFileName] = useState(null);
     const [songToPlay, setSongToPlay] = useState([]);
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
     const [noteStatuses, setNoteStatuses] = useState([]);
     const [processedNotesCount, setProcessedNotesCount] = useState(0);
     const [isScoring, setIsScoring] = useState(false);
     const [playbackUrl, setPlaybackUrl] = useState(null);
+    const [tempo, setTempo] = useState(120); // Default tempo
+    const [timingTolerance, setTimingTolerance] = useState(0.3); // Default tolerance
 
     // Parse MusicXML whenever it changes
     useEffect(() => {
@@ -77,16 +81,45 @@ const Recording = () => {
         }
     }, [musicXML]);
 
-    // Handle file upload
-    const handleFileUpload = (event) => {
+    // Handle file upload - Upload to server and display
+    const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setMusicXML(e.target.result);
-        };
-        reader.readAsText(file);
+        try {
+            // First, upload the MusicXML file to the server
+            const formData = new FormData();
+            formData.append('musicXmlFile', file);
+
+            const uploadResponse = await fetch('http://localhost:3001/api/performances/upload-musicxml', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('Failed to upload MusicXML file');
+            }
+
+            const uploadResult = await uploadResponse.json();
+            console.log('MusicXML uploaded:', uploadResult);
+
+            // Store the server file path
+            setUploadedMusicXmlPath(uploadResult.filePath);
+            setUploadedFileName(uploadResult.fileName);
+
+            // Read the file content for display
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                setMusicXML(content);
+            };
+            reader.readAsText(file);
+
+            alert(`MusicXML file "${uploadResult.fileName}" uploaded successfully!`);
+        } catch (error) {
+            console.error('Error uploading MusicXML:', error);
+            alert('Failed to upload MusicXML file. Please try again.');
+        }
     };
 
     // Live comparison logic
@@ -111,7 +144,7 @@ const Recording = () => {
         setProcessedNotesCount(prevCount => prevCount + 1);
     }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses, songToPlay]);
 
-    // Scoring Logic
+    // Scoring Logic - Updated to include MusicXML path
     const submitForScoring = (audioBlob) => {
         console.log('Submitting audio for scoring...', audioBlob);
         setIsScoring(true);
@@ -119,7 +152,20 @@ const Recording = () => {
         formData.append('audioFile', audioBlob, 'performance.webm');
         formData.append('songId', 'twinkle_twinkle');
 
-        fetch('http://localhost:3001/api/performances', { method: 'POST', body: formData })
+        // Add MusicXML path if available
+        if (uploadedMusicXmlPath) {
+            formData.append('musicXmlPath', uploadedMusicXmlPath);
+            console.log('Sending MusicXML path:', uploadedMusicXmlPath);
+        }
+
+        // Add tempo and timing tolerance
+        formData.append('tempo', tempo.toString());
+        formData.append('timingTolerance', timingTolerance.toString());
+
+        fetch('http://localhost:3001/api/performances/analyze', { 
+            method: 'POST', 
+            body: formData 
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Server responded with status: ${response.status}`);
@@ -131,9 +177,30 @@ const Recording = () => {
                 setIsScoring(false);
 
                 if (data && data.playedNotes) {
-                    const notesString = JSON.stringify(data.playedNotes, null, 2);
-                    alert(`Analysis complete!\nDetected Notes:\n${notesString}`);
                     console.log("Played Notes:", data.playedNotes);
+                    
+                    // Display comparison results if available
+                    if (data.comparison) {
+                        const { pitch_accuracy, timing_accuracy, overall_score, details } = data.comparison;
+                        
+                        // Create detailed feedback message
+                        let feedbackMessage = `🎵 Performance Analysis 🎵\n\n`;
+                        feedbackMessage += `Pitch Accuracy: ${pitch_accuracy}%\n`;
+                        feedbackMessage += `Timing Accuracy: ${timing_accuracy}%\n`;
+                        feedbackMessage += `Overall Score: ${overall_score}%\n\n`;
+                        
+                        // Add summary
+                        feedbackMessage += `Total Notes: ${data.comparison.total_expected}\n`;
+                        feedbackMessage += `Correct Notes: ${data.comparison.correct_notes}\n`;
+                        feedbackMessage += `On-Time Notes: ${data.comparison.on_time_notes}\n`;
+                        
+                        alert(feedbackMessage);
+                        
+                        // Log detailed results
+                        console.log('Detailed comparison:', details);
+                    } else {
+                        alert('Performance recorded successfully! (No comparison data available)');
+                    }
                 } else if (data && data.error) {
                     alert(`Analysis Error: ${data.error}`);
                     console.error("Analysis Error:", data.error);
@@ -192,17 +259,51 @@ const Recording = () => {
     return (
         <div className="recording-page">
             {/* File Upload */}
-            <div className="upload-section" style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc' }}>
-                <label htmlFor="musicxml-upload" style={{ cursor: 'pointer' }}>
+            <div className="upload-section">
+                <label htmlFor="musicxml-upload" className="upload-label">
                     📁 Upload MusicXML file (or use default Twinkle Twinkle):
                     <input
                         id="musicxml-upload"
                         type="file"
                         accept=".xml,.musicxml"
                         onChange={handleFileUpload}
-                        style={{ marginLeft: '10px' }}
+                        className="file-input"
                     />
                 </label>
+                {uploadedFileName && (
+                    <div className="upload-success">
+                        ✓ Uploaded: {uploadedFileName}
+                    </div>
+                )}
+            </div>
+
+            {/* Tempo and Tolerance Settings */}
+            <div className="settings-section">
+                <div className="setting-item">
+                    <label htmlFor="tempo-input">Tempo (BPM):</label>
+                    <input
+                        id="tempo-input"
+                        type="number"
+                        min="40"
+                        max="240"
+                        value={tempo}
+                        onChange={(e) => setTempo(parseInt(e.target.value))}
+                        className="setting-input"
+                    />
+                </div>
+                <div className="setting-item">
+                    <label htmlFor="tolerance-input">Timing Tolerance (seconds):</label>
+                    <input
+                        id="tolerance-input"
+                        type="number"
+                        min="0.1"
+                        max="1.0"
+                        step="0.1"
+                        value={timingTolerance}
+                        onChange={(e) => setTimingTolerance(parseFloat(e.target.value))}
+                        className="setting-input"
+                    />
+                </div>
             </div>
 
             <SheetMusicDisplay
@@ -229,7 +330,7 @@ const Recording = () => {
             )}
 
             {playbackUrl && (
-                <div className="playback-container" style={{ marginTop: '20px' }}>
+                <div className="playback-container">
                     <h4>Listen to your performance:</h4>
                     <audio src={playbackUrl} controls />
                     {isScoring && <p>Calculating your score...</p>}

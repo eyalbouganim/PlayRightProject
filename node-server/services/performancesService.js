@@ -42,9 +42,13 @@ const convertToWav = (inputFilePath) => {
  * Analyzes a given audio file performance against a song ID by running a Python script.
  * @param {string} audioFilePath - The absolute path to the temporary uploaded audio file (e.g., .webm).
  * @param {string} songId - The ID of the song being performed.
+ * @param {object} options - Optional parameters for analysis.
+ * @param {string} options.musicXmlPath - Path to the MusicXML file for comparison (optional).
+ * @param {number} options.tempo - Tempo in BPM (default: 120).
+ * @param {number} options.timingTolerance - Timing tolerance in seconds (default: 0.3).
  * @returns {Promise<object>} A promise that resolves with the analysis result (parsed JSON).
  */
-const analyzePerformance = async (audioFilePath, songId) => { // Renamed this function
+const analyzePerformance = async (audioFilePath, songId, options = {}) => {
     let wavFilePath = null; // Track WAV path for cleanup
 
     try {
@@ -63,6 +67,24 @@ const analyzePerformance = async (audioFilePath, songId) => { // Renamed this fu
             '--audio-path', wavFilePath,
             '--song-id', songId
         ];
+
+        // Add optional MusicXML path if provided
+        if (options.musicXmlPath) {
+            logger.info(`Using MusicXML for comparison: ${options.musicXmlPath}`);
+            scriptArgs.push('--musicxml-path', options.musicXmlPath);
+        }
+
+        // Add tempo if provided
+        if (options.tempo) {
+            scriptArgs.push('--tempo', options.tempo.toString());
+        }
+
+        // Add timing tolerance if provided
+        if (options.timingTolerance) {
+            scriptArgs.push('--timing-tolerance', options.timingTolerance.toString());
+        }
+
+        logger.info(`Python script args: ${scriptArgs.join(' ')}`);
 
         const pythonResult = await new Promise((resolve, reject) => {
             const pythonProcess = spawn(PYTHON_EXECUTABLE, scriptArgs);
@@ -123,5 +145,5 @@ const analyzePerformance = async (audioFilePath, songId) => { // Renamed this fu
 };
 
 module.exports = {
-    analyzePerformance // Export using the new name
+    analyzePerformance
 };
