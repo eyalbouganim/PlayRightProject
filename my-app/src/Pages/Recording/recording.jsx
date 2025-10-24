@@ -1,57 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import { useAudioStream } from '../../hooks/useAudioStream';
-import { useAudioRecorder } from '../../hooks/useAudioRecorder'; // Your recorder hook
+import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import LiveRecorder from './components/LiveRecorder';
-// import TargetNotes from './components/TargetNotes';
 import SheetMusicDisplay from './components/SheetMusicDisplay';
+import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
 import './recording.css';
 
-const songToPlay = [
-    { name: 'C4' }, { name: 'C4' }, { name: 'G4' }, { name: 'G4' },
-    { name: 'A4' }, { name: 'A4' }, { name: 'G4' }, { name: 'F4' },
-    { name: 'F4' }, { name: 'E4' }, { name: 'E4' }, { name: 'D4' },
-    { name: 'D4' }, { name: 'C4' }
-];
+// Default Twinkle Twinkle Little Star MusicXML
+const defaultMusicXML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+    <part-list>
+        <score-part id="P1">
+            <part-name>Twinkle Twinkle Little Star</part-name>
+        </score-part>
+    </part-list>
+    <part id="P1">
+        <measure number="1">
+            <attributes>
+                <divisions>1</divisions>
+                <key><fifths>0</fifths></key>
+                <time><beats>4</beats><beat-type>4</beat-type></time>
+                <clef><sign>G</sign><line>2</line></clef>
+            </attributes>
+            <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+        </measure>
+        <measure number="2">
+            <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note>
+        </measure>
+        <measure number="3">
+            <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+        </measure>
+        <measure number="4">
+            <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+            <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note>
+            <barline location="right"><bar-style>light-heavy</bar-style></barline>
+        </measure>
+    </part>
+</score-partwise>`;
 
 const Recording = () => {
-    // Hook 1: For live streaming notes
     const streamHook = useAudioStream();
-    
-    // Hook 2: For recording the full file. It now manages its own stream.
-    const recorderHook = useAudioRecorder(); 
-
+    const recorderHook = useAudioRecorder();
     const { notes: detectedNotes, isRecording } = streamHook;
 
-    // Game state (unchanged)
+    // State
+    const [musicXML, setMusicXML] = useState(defaultMusicXML);
+    const [songToPlay, setSongToPlay] = useState([]);
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
-    const [noteStatuses, setNoteStatuses] = useState(new Array(songToPlay.length).fill('pending'));
+    const [noteStatuses, setNoteStatuses] = useState([]);
     const [processedNotesCount, setProcessedNotesCount] = useState(0);
     const [isScoring, setIsScoring] = useState(false);
     const [playbackUrl, setPlaybackUrl] = useState(null);
 
-    // Live comparison logic (unchanged)
+    // Parse MusicXML whenever it changes
+    useEffect(() => {
+        try {
+            const notes = parseMusicXMLToNotes(musicXML);
+            console.log('Parsed notes from MusicXML:', notes);
+            setSongToPlay(notes);
+            setNoteStatuses(new Array(notes.length).fill('pending'));
+            setCurrentTargetNoteIndex(0);
+            setProcessedNotesCount(0);
+        } catch (error) {
+            console.error('Error parsing MusicXML:', error);
+            alert('Error loading sheet music. Please check the file format.');
+        }
+    }, [musicXML]);
+
+    // Handle file upload
+    const handleFileUpload = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setMusicXML(e.target.result);
+        };
+        reader.readAsText(file);
+    };
+
+    // Live comparison logic
     useEffect(() => {
         if (!isRecording || detectedNotes.length <= processedNotesCount || currentTargetNoteIndex >= songToPlay.length) {
             return;
         }
-        // ... (comparison logic is the same) ...
+
         const nextNoteToProcess = detectedNotes[processedNotesCount];
         const targetNote = songToPlay[currentTargetNoteIndex];
+
         if (nextNoteToProcess.note === targetNote.name) {
-             const newStatuses = [...noteStatuses];
-             newStatuses[currentTargetNoteIndex] = 'correct';
-             setNoteStatuses(newStatuses);
-             setCurrentTargetNoteIndex(prevIndex => prevIndex + 1);
+            const newStatuses = [...noteStatuses];
+            newStatuses[currentTargetNoteIndex] = 'correct';
+            setNoteStatuses(newStatuses);
+            setCurrentTargetNoteIndex(prevIndex => prevIndex + 1);
         } else {
-             const newStatuses = [...noteStatuses];
-             newStatuses[currentTargetNoteIndex] = 'incorrect';
-             setNoteStatuses(newStatuses);
+            const newStatuses = [...noteStatuses];
+            newStatuses[currentTargetNoteIndex] = 'incorrect';
+            setNoteStatuses(newStatuses);
         }
         setProcessedNotesCount(prevCount => prevCount + 1);
-    }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses]);
+    }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses, songToPlay]);
 
-    // Scoring Logic (unchanged)
-const submitForScoring = (audioBlob) => {
+    // Scoring Logic
+    const submitForScoring = (audioBlob) => {
         console.log('Submitting audio for scoring...', audioBlob);
         setIsScoring(true);
         const formData = new FormData();
@@ -59,72 +120,68 @@ const submitForScoring = (audioBlob) => {
         formData.append('songId', 'twinkle_twinkle');
 
         fetch('http://localhost:3001/api/performances', { method: 'POST', body: formData })
-        .then(response => {
-            if (!response.ok) {
-                 throw new Error(`Server responded with status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Analysis result received in React:', data);
-            setIsScoring(false);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Analysis result received in React:', data);
+                setIsScoring(false);
 
-            if (data && data.playedNotes) {
-                // Convert the playedNotes array to a nicely formatted JSON string for the alert
-                const notesString = JSON.stringify(data.playedNotes, null, 2); // null, 2 adds indentation
-                alert(`Analysis complete!\nDetected Notes:\n${notesString}`);
-                console.log("Played Notes:", data.playedNotes);
-            } else if (data && data.error) {
-                 alert(`Analysis Error: ${data.error}`);
-                 console.error("Analysis Error:", data.error);
-            }
-             else {
-                 alert('Received unexpected data format from server.');
-                 console.error('Unexpected data:', data);
-            }
-        })
-        .catch(err => {
-            console.error('Error submitting score:', err);
-            setIsScoring(false);
-            alert(`Error submitting score: ${err.message}`);
-        });
+                if (data && data.playedNotes) {
+                    const notesString = JSON.stringify(data.playedNotes, null, 2);
+                    alert(`Analysis complete!\nDetected Notes:\n${notesString}`);
+                    console.log("Played Notes:", data.playedNotes);
+                } else if (data && data.error) {
+                    alert(`Analysis Error: ${data.error}`);
+                    console.error("Analysis Error:", data.error);
+                } else {
+                    alert('Received unexpected data format from server.');
+                    console.error('Unexpected data:', data);
+                }
+            })
+            .catch(err => {
+                console.error('Error submitting score:', err);
+                setIsScoring(false);
+                alert(`Error submitting score: ${err.message}`);
+            });
     };
-    
-    // Playback and Submission Logic (unchanged)
+
+    // Playback and Submission Logic
     useEffect(() => {
         if (recorderHook.audioBlob) {
             const url = URL.createObjectURL(recorderHook.audioBlob);
             setPlaybackUrl(url);
             submitForScoring(recorderHook.audioBlob);
         }
-        // Cleanup function
         return () => {
             if (playbackUrl) {
                 URL.revokeObjectURL(playbackUrl);
             }
         };
-    }, [recorderHook.audioBlob]); // Dependency array is correct
+    }, [recorderHook.audioBlob]);
 
-    // --- Wrapped Control Functions ---
-    // These now simply call the respective hook functions
+    // Control Functions
     const handleStart = async () => {
-        setPlaybackUrl(null); 
+        setPlaybackUrl(null);
         setCurrentTargetNoteIndex(0);
         setNoteStatuses(new Array(songToPlay.length).fill('pending'));
         setProcessedNotesCount(0);
-        
-        await streamHook.startRecording();  // Start live feedback stream
-        recorderHook.startFullRecording(); // Start full recording
+
+        await streamHook.startRecording();
+        recorderHook.startFullRecording();
     };
 
     const handleStop = () => {
-        streamHook.stopRecording();      // Stop live feedback stream
-        recorderHook.stopFullRecording(); // Stop full recording (will trigger blob creation)
+        streamHook.stopRecording();
+        recorderHook.stopFullRecording();
     };
 
     const handleReset = () => {
         streamHook.reset();
-        recorderHook.stopFullRecording(); // Ensure recorder stops if it was running
+        recorderHook.stopFullRecording();
         setCurrentTargetNoteIndex(0);
         setNoteStatuses(new Array(songToPlay.length).fill('pending'));
         setProcessedNotesCount(0);
@@ -132,47 +189,51 @@ const submitForScoring = (audioBlob) => {
         setPlaybackUrl(null);
     };
 
-    // --- Render ---
     return (
         <div className="recording-page">
-            {/* <TargetNotes
-                song={songToPlay}
-                noteStatuses={noteStatuses}
-                currentTargetNoteIndex={currentTargetNoteIndex}
-            /> */}
+            {/* File Upload */}
+            <div className="upload-section" style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc' }}>
+                <label htmlFor="musicxml-upload" style={{ cursor: 'pointer' }}>
+                    📁 Upload MusicXML file (or use default Twinkle Twinkle):
+                    <input
+                        id="musicxml-upload"
+                        type="file"
+                        accept=".xml,.musicxml"
+                        onChange={handleFileUpload}
+                        style={{ marginLeft: '10px' }}
+                    />
+                </label>
+            </div>
 
             <SheetMusicDisplay
+                musicXML={musicXML}
                 currentTargetNoteIndex={currentTargetNoteIndex}
                 noteStatuses={noteStatuses}
             />
-            
-            {/* Pass only the necessary props from streamHook, plus the wrapped functions */}
-            <LiveRecorder 
+
+            <LiveRecorder
                 isConnected={streamHook.isConnected}
-                isRecording={streamHook.isRecording} // Controls the button display
+                isRecording={streamHook.isRecording}
                 status={streamHook.status}
                 notes={detectedNotes}
-                error={streamHook.error || recorderHook.recorderError} // Show errors from either hook
+                error={streamHook.error || recorderHook.recorderError}
                 connect={streamHook.connect}
-                startRecording={handleStart} // Pass the wrapped start
-                stopRecording={handleStop}   // Pass the wrapped stop
-                reset={handleReset} 
-                disconnect={streamHook.disconnect} 
+                startRecording={handleStart}
+                stopRecording={handleStop}
+                reset={handleReset}
+                disconnect={streamHook.disconnect}
             />
-            
-            {/* Completion Message (unchanged) */}
-            {currentTargetNoteIndex >= songToPlay.length && !isRecording && (
-                 <div className="completion-message"><h2>🎉 Well Done! 🎉</h2></div>
+
+            {currentTargetNoteIndex >= songToPlay.length && !isRecording && songToPlay.length > 0 && (
+                <div className="completion-message"><h2>🎉 Well Done! 🎉</h2></div>
             )}
 
-            {/* Playback Container (unchanged) */}
             {playbackUrl && (
-                 <div className="playback-container" style={{marginTop: '20px'}}>
-                     <h4>Listen to your performance:</h4>
-                     <audio src={playbackUrl} controls />
-                     {isScoring && <p>Calculating your score...</p>}
-                     <button /* ... download logic ... */>💾 Download Recording</button>
-                 </div>
+                <div className="playback-container" style={{ marginTop: '20px' }}>
+                    <h4>Listen to your performance:</h4>
+                    <audio src={playbackUrl} controls />
+                    {isScoring && <p>Calculating your score...</p>}
+                </div>
             )}
         </div>
     );

@@ -1,9 +1,19 @@
 .sheet-music-display-container {
-    width: 100%;
-    /* max-width: 800px; */ /* Optional: constrain width */
-    margin: 20px auto;
-    border: 1px solid #ddd;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    overflow-x: auto; /* Allow horizontal scrolling if music is wide */
-    background-color: white;
+  flex: 3; /* Allow sheet music to take more space (approx 60%) */
+  min-width: 600px; /* Increased from 450px for more space */
+  width: 100%;
+  padding: 30px; /* Increased from 20px */
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow-x: auto; /* Allow horizontal scrolling if music is wide */
+  overflow-y: visible; /* Ensure vertical content isn't clipped */
+}
+
+.sheet-music-display-container > div {
+  width: 100%;
+  min-height: 300px; /* Give it minimum height */
+  /* Add scaling to make notes larger and less dense */
+  transform-origin: top left;
 }

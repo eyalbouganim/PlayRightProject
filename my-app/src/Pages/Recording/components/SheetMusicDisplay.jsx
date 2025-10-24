@@ -1,40 +1,70 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { OpenSheetMusicDisplay, Cursor } from 'opensheetmusicdisplay';
+import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 import './SheetMusicDisplay.css';
 
-// --- (sampleMusicXML remains the same) ---
-const sampleMusicXML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd"><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><barline location="right"><bar-style>light-heavy</bar-style></barline></measure></part></score-partwise>`;
-
-const SheetMusicDisplay = ({ currentTargetNoteIndex }) => {
+const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
     const osmdContainerRef = useRef(null);
     const osmdRef = useRef(null);
     const cursorRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [osmdRendered, setOsmdRendered] = useState(false); // Changed state name for clarity
+    const [osmdRendered, setOsmdRendered] = useState(false);
 
     // Effect 1: Initialize OSMD and Render Score
     useEffect(() => {
-        if (!osmdContainerRef.current || osmdRef.current) return;
+        if (!osmdContainerRef.current || !musicXML) return;
 
-        console.log("Initializing OSMD...");
+        // Clean up previous instance completely
+        if (osmdRef.current) {
+            try {
+                osmdRef.current.clear();
+            } catch (e) {
+                console.warn("Error clearing OSMD:", e);
+            }
+            osmdRef.current = null;
+        }
+        
+        // Reset cursor reference
+        cursorRef.current = null;
+        setOsmdRendered(false);
+        setIsLoading(true);
+        setError(null);
+
+        console.log("Initializing OSMD with new MusicXML...");
+        
         osmdRef.current = new OpenSheetMusicDisplay(osmdContainerRef.current, {
             autoResize: true,
             backend: "svg",
             drawTitle: true,
+            drawingParameters: "default",
         });
 
-        osmdRef.current.load(sampleMusicXML)
+        osmdRef.current.load(musicXML)
             .then(() => {
                 console.log("OSMD Load successful, rendering...");
-                // Render returns a Promise, wait for it if necessary in some OSMD versions
+                osmdRef.current.zoom = 1.3;
                 return osmdRef.current.render();
             })
             .then(() => {
-                // Now rendering should be fully complete
-                console.log("OSMD rendered.");
-                setIsLoading(false);
-                setOsmdRendered(true); // Signal that rendering is done
+                console.log("OSMD render() completed.");
+                
+                // Use setTimeout to ensure OSMD internal structure is fully ready
+                setTimeout(() => {
+                    // Debug: Count notes in OSMD
+                    if (osmdRef.current && osmdRef.current.GraphicSheet) {
+                        const measures = osmdRef.current.GraphicSheet.SourceMeasures;
+                        console.log("Measures:", measures);
+                        
+                        const osmdNoteCount = measures
+                            ?.flatMap(m => m.SourceNotes?.filter(n => !n.isRest()))?.length ?? 0;
+                        console.log(`OSMD detected ${osmdNoteCount} notes in the sheet music`);
+                    } else {
+                        console.error("GraphicSheet not available");
+                    }
+                    
+                    setIsLoading(false);
+                    setOsmdRendered(true);
+                }, 100); // Small delay to ensure everything is ready
             })
             .catch((e) => {
                 setError("Error rendering sheet music.");
@@ -42,76 +72,108 @@ const SheetMusicDisplay = ({ currentTargetNoteIndex }) => {
                 console.error("OSMD Load/Render Error:", e);
             });
 
-    }, []); // Runs only once on mount
-
-// Effect 2: Initialize Cursor *after* OSMD has rendered
-useEffect(() => {
-    let animationFrameId;
-
-    // Only run if OSMD rendering is done AND the cursor hasn't been created yet
-    if (osmdRendered && osmdContainerRef.current && osmdRef.current && !cursorRef.current) {
-        console.log("OSMD has rendered, scheduling cursor initialization...");
-
-        // Use rAF to ensure browser paint is done
-        animationFrameId = requestAnimationFrame(() => {
-            console.log("Inside rAF: Checking OSMD readiness for cursor...");
-            try {
-                // ** CRUCIAL CHECK: Ensure GraphicSheet exists **
-                // GraphicSheet is a core object needed for cursor iteration
-                if (osmdRef.current && osmdRef.current.GraphicSheet) {
-                    console.log("OSMD GraphicSheet found. Initializing cursor...");
-                    // FIX: Pass only the OSMD instance, not the container
-                    cursorRef.current = osmdRef.current.cursor;
-                    cursorRef.current.show();
-                    console.log("Cursor initialized and shown via rAF.");
-                } else {
-                     // If GraphicSheet isn't ready even after rAF, something is wrong
-                     console.error("OSMD GraphicSheet not ready within rAF. Cursor cannot be initialized.");
-                     setError("Failed to initialize cursor: OSMD internal state not ready.");
+        return () => {
+            if (osmdRef.current) {
+                try {
+                    osmdRef.current.clear();
+                } catch (e) {
+                    console.warn("Cleanup error:", e);
                 }
-            } catch (e) {
-                 setError(`Error initializing cursor: ${e.message}`);
-                 console.error("Cursor Initialization Error inside rAF:", e);
             }
-        });
-    }
+        };
+    }, [musicXML]);
 
-    return () => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
+    // Effect 2: Initialize Cursor after OSMD has rendered
+    useEffect(() => {
+        let timeoutId;
+
+        if (osmdRendered && osmdRef.current && !cursorRef.current) {
+            console.log("OSMD has rendered, initializing cursor...");
+
+            // Use setTimeout instead of rAF for more reliable timing
+            timeoutId = setTimeout(() => {
+                try {
+                    if (osmdRef.current && osmdRef.current.cursor) {
+                        console.log("Initializing cursor...");
+                        cursorRef.current = osmdRef.current.cursor;
+                        cursorRef.current.reset();
+                        cursorRef.current.show();
+                        console.log("✓ Cursor initialized and shown successfully!");
+                        
+                        // Verify cursor is at the right position
+                        console.log("Cursor iterator exists:", !!cursorRef.current.iterator);
+                    } else {
+                        console.error("OSMD cursor not available.");
+                        console.log("OSMD ref exists:", !!osmdRef.current);
+                        console.log("Cursor exists:", !!osmdRef.current?.cursor);
+                        setError("Failed to initialize cursor.");
+                    }
+                } catch (e) {
+                    setError(`Error initializing cursor: ${e.message}`);
+                    console.error("Cursor Initialization Error:", e);
+                }
+            }, 150); // Slightly longer delay
         }
-    };
-}, [osmdRendered]);
+
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [osmdRendered]);
 
     // Effect 3: Move Cursor when index changes
     useEffect(() => {
-        // Only move cursor if it exists and the index is valid
-        if (cursorRef.current && osmdRendered && currentTargetNoteIndex >= 0) {
-            console.log(`Received index update: ${currentTargetNoteIndex}`);
-            try {
-                cursorRef.current.reset();
-                for (let i = 0; i < currentTargetNoteIndex; i++) {
-                    if (!cursorRef.current.iterator.EndReached) {
-                        cursorRef.current.next();
-                    } else {
-                        break;
-                    }
-                }
-                // Determine show/hide based on note count (safer check)
-                 const noteCount = osmdRef.current?.GraphicSheet?.SourceMeasures
-                                   ?.flatMap(m => m.SourceNotes?.filter(n => !n.isRest()))?.length ?? 0;
-                 if (currentTargetNoteIndex >= noteCount && noteCount > 0) {
-                      cursorRef.current.hide();
-                 } else {
-                      cursorRef.current.show();
-                 }
-
-            } catch (e) {
-                console.error("Error moving cursor:", e);
-            }
+        if (!cursorRef.current || !osmdRendered || currentTargetNoteIndex < 0) {
+            console.log('Cursor movement skipped:', {
+                hasCursor: !!cursorRef.current,
+                osmdRendered,
+                currentTargetNoteIndex
+            });
+            return;
         }
-    }, [currentTargetNoteIndex, osmdRendered]); // Also depend on osmdRendered
 
+        console.log(`\n=== Moving cursor to note index: ${currentTargetNoteIndex} ===`);
+        
+        try {
+            // Reset cursor to beginning
+            cursorRef.current.reset();
+            console.log('Cursor reset to start');
+            
+            // Verify iterator is ready
+            if (!cursorRef.current.iterator) {
+                console.error("Cursor iterator not available!");
+                return;
+            }
+            
+            // Move cursor to the target note
+            let moveCount = 0;
+            for (let i = 0; i < currentTargetNoteIndex; i++) {
+                if (cursorRef.current.iterator && !cursorRef.current.iterator.EndReached) {
+                    cursorRef.current.next();
+                    moveCount++;
+                } else {
+                    console.log(`Reached end of score at move ${moveCount}`);
+                    break;
+                }
+            }
+            
+            console.log(`Cursor moved ${moveCount} times to reach index ${currentTargetNoteIndex}`);
+
+            // Show/hide cursor based on position
+            if (cursorRef.current.iterator && cursorRef.current.iterator.EndReached) {
+                console.log('Hiding cursor (reached end)');
+                cursorRef.current.hide();
+            } else {
+                console.log('Showing cursor');
+                cursorRef.current.show();
+            }
+            
+            console.log('=== Cursor movement complete ===\n');
+        } catch (e) {
+            console.error("Error moving cursor:", e);
+        }
+    }, [currentTargetNoteIndex, osmdRendered]);
 
     return (
         <div className="sheet-music-display-container">
