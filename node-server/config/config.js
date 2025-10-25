@@ -16,7 +16,7 @@ module.exports = {
     // Python configuration
     python: {
         scriptPath: path.join(__dirname, '../../brain-server/streaming_analysis.py'),
-        analysisScriptPath: path.join(__dirname, '../../brain-server/audio_analysis.py'),
+        analysisScriptPath: path.join(__dirname, '../../brain-server/audio_analysis/main.py'),
         executable: '/home/eyalb1380/PlayRightProject/brain-server/venv/bin/python3',
         timeout: 30000 // 30 seconds
     },

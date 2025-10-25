@@ -103,7 +103,7 @@ def detect_pitch_robust(segment, sample_rate, n_fft=2048):
             return (0.5 * median_freq_yin + 0.5 * f0_hps)
         
         return median_freq_yin
-        
+    
     except Exception as e:
         print(f"--- Pitch detection error: {e} ---", file=sys.stderr)
         return None
@@ -353,6 +353,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             'total_expected': n_expected,
             'total_detected': 0,
             'correct_notes': 0,
+            'wrong_notes': 0,
             'on_time_notes': 0,
             'details': details
         }
@@ -370,14 +371,14 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             'original_time': note['start_time']
         })
     
-        normalized_expected = []
-        for note in expected_notes:
-            normalized_expected.append({
-                'note': note['note'],
-                'start_time': note['start_time'] - expected_start,
-                'duration': note.get('duration', 0),
-                'original_time': note['start_time']  # ← FIX: use note['start_time'] not note['original_time']
-            })
+    normalized_expected = []
+    for note in expected_notes:
+        normalized_expected.append({
+            'note': note['note'],
+            'start_time': note['start_time'] - expected_start,
+            'duration': note.get('duration', 0),
+            'original_time': note['start_time']
+        })
     
     print(f"--- Normalized to start at 0 (detected started at {detected_start:.3f}s) ---", file=sys.stderr)
     
@@ -424,12 +425,11 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     all_results = []
     correct_pitch = 0
     correct_timing = 0
-    pitch_mistakes = 0  # Count mistake "groups"
     timing_mistakes = 0  # Count timing issues on CORRECT notes only
+    wrong_notes_count = 0  # Count individual wrong notes played
     
     expected_idx = 0
     last_matched_detected_idx = -1
-    currently_making_mistake = False  # Track if we're in a "mistake streak"
     
     for detected_idx in range(n_detected):
         det = normalized_detected[detected_idx]
@@ -437,12 +437,8 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         
         # Check if we've finished the expected sequence
         if expected_idx >= n_expected:
-            # Extra notes after song is done
-            if not currently_making_mistake:
-                pitch_mistakes += 1
-                currently_making_mistake = True
-            
-            # Don't count timing for wrong notes
+            # Extra notes after song is done - WRONG NOTE
+            wrong_notes_count += 1
             
             all_results.append({
                 'expected_note': None,
@@ -464,10 +460,8 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         if det_note == exp_note:
             # MATCH! This is the correct note
             correct_pitch += 1
-            currently_making_mistake = False  # Reset mistake streak
             
-            # Check rhythm (timing relative to previous matched note)
-            # ONLY check timing for CORRECT notes
+            # Check timing ONLY for CORRECT notes
             timing_correct = False
             time_diff = abs(exp['start_time'] - det['start_time'])
             
@@ -520,15 +514,12 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             # Move to next expected note
             expected_idx += 1
             last_matched_detected_idx = detected_idx
-            
+        
         else:
             # WRONG NOTE! This doesn't match the expected note
-            # Only count as ONE pitch mistake if we're in a mistake streak
-            if not currently_making_mistake:
-                pitch_mistakes += 1
-                currently_making_mistake = True
+            wrong_notes_count += 1
             
-            # DON'T count timing for wrong notes - ignore them completely for timing
+            # DO NOT check timing for wrong notes - just skip them
             
             all_results.append({
                 'expected_note': exp['note'],
@@ -547,8 +538,8 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     missed_count = n_expected - correct_pitch
     for exp_idx in range(expected_idx, n_expected):
         exp = scaled_expected[exp_idx]
-        pitch_mistakes += 1  # Each missed note is a pitch mistake
-        timing_mistakes += 1  # Each missed note is also a timing mistake (note never came)
+        # Missed notes count as timing mistakes (note never came at the right time)
+        timing_mistakes += 1
         
         all_results.append({
             'expected_note': exp['note'],
@@ -562,22 +553,27 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         })
     
     # Sort results by detected position
-    all_results.sort(key=lambda x: x['detected_position'] if x['detected_position'] is not None else 999999)
+    all_results.sort(key=lambda x: x['detected_position'] if x['detected_position'] is not None else 9999)
     
-    # Calculate accuracy
-    # Pitch accuracy: based on mistake "groups"
-    pitch_accuracy = max(0, ((n_expected - pitch_mistakes) / n_expected) * 100)
+    # PITCH ACCURACY CALCULATION (as specified):
+    # Start at 0, +1/n for each correct note, -1/n for each wrong note
+    pitch_score = correct_pitch - wrong_notes_count  # Net score
+    pitch_accuracy = (pitch_score / n_expected) * 100
+    pitch_accuracy = max(0.0, pitch_accuracy)  # Floor at 0%
     
-    # Timing accuracy: based on timing issues for CORRECT notes only + missed notes
+    # TIMING ACCURACY CALCULATION (as specified):
+    # Only check timing of correct notes
+    # timing_mistakes already counts only timing issues on correct notes + missed notes
     timing_accuracy = max(0, ((n_expected - timing_mistakes) / n_expected) * 100)
     
     # Overall score
     overall_score = (pitch_accuracy * 0.6 + timing_accuracy * 0.4)
     
     print(f"--- Correct Notes: {correct_pitch}/{n_expected} ---", file=sys.stderr)
-    print(f"--- Pitch Mistakes (groups): {pitch_mistakes} ---", file=sys.stderr)
-    print(f"--- Timing Mistakes (on correct notes only): {timing_mistakes} ---", file=sys.stderr)
+    print(f"--- Wrong Notes: {wrong_notes_count} ---", file=sys.stderr)
     print(f"--- Missed Notes: {missed_count} ---", file=sys.stderr)
+    print(f"--- Pitch Score: {pitch_score} (correct - wrong) ---", file=sys.stderr)
+    print(f"--- Timing Mistakes (on correct notes only): {timing_mistakes} ---", file=sys.stderr)
     print(f"--- Pitch Accuracy: {pitch_accuracy:.2f}% ---", file=sys.stderr)
     print(f"--- Timing Accuracy: {timing_accuracy:.2f}% ---", file=sys.stderr)
     
@@ -589,7 +585,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         'total_expected': int(n_expected),
         'total_detected': int(n_detected),
         'correct_notes': int(correct_pitch),
-        'pitch_mistakes': int(pitch_mistakes),
+        'wrong_notes': int(wrong_notes_count),
         'timing_mistakes': int(timing_mistakes),
         'missed_notes': int(missed_count),
         'on_time_notes': int(correct_timing),
