@@ -7,6 +7,23 @@ from scipy.optimize import linear_sum_assignment
 import xml.etree.ElementTree as ET
 import argparse
 
+def make_json_serializable(obj):
+    """Convert numpy types to native Python types for JSON serialization"""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, dict):
+        return {key: make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(item) for item in obj]
+    else:
+        return obj
+
 # Piano note frequencies (A0 to C8 - 88 keys)
 def get_piano_notes():
     """Generate all 88 piano key frequencies"""
@@ -302,6 +319,8 @@ def parse_musicxml(xml_path, tempo=120):
 def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     """
     Align detected notes with expected notes and calculate accuracy
+    Uses relative timing (rhythm) and enforces sequential order
+    Allows wrong notes to be inserted, but continues sequence when correct note is found
     """
     if not expected_notes:
         return {
@@ -338,116 +357,244 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             'details': details
         }
     
-    # Build cost matrix for Hungarian algorithm
-    cost_matrix = np.zeros((n_expected, n_detected))
+    # Step 1: Normalize both sequences to start at time 0
+    detected_start = detected_notes[0]['start_time']
+    expected_start = expected_notes[0]['start_time']
     
-    for i, exp in enumerate(expected_notes):
-        for j, det in enumerate(detected_notes):
-            # Normalize note names for comparison (handle flats/sharps)
-            exp_note = normalize_note_name(exp['note'])
-            det_note = normalize_note_name(det['note'])
-            
-            # Pitch cost: 0 if same note, 1000 if different
-            pitch_cost = 0 if exp_note == det_note else 1000
-            
-            # Timing cost: absolute time difference
-            timing_cost = abs(exp['start_time'] - det['start_time'])
-            
-            cost_matrix[i, j] = pitch_cost + timing_cost
-    
-    # Use Hungarian algorithm for optimal alignment
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    
-    # Analyze alignment
-    details = []
-    correct_pitch = 0
-    correct_timing = 0
-    matched_detected = set()
-    
-    for i, j in zip(row_ind, col_ind):
-        exp = expected_notes[i]
-        det = detected_notes[j]
-        
-        exp_note = normalize_note_name(exp['note'])
-        det_note = normalize_note_name(det['note'])
-        
-        pitch_correct = bool(exp_note == det_note)
-        time_diff = abs(exp['start_time'] - det['start_time'])
-        timing_correct = bool(time_diff <= timing_tolerance)
-        
-        if pitch_correct:
-            correct_pitch += 1
-        if timing_correct:
-            correct_timing += 1
-        
-        matched_detected.add(j)
-        
-        # Determine status
-        if pitch_correct and timing_correct:
-            status = 'perfect'
-        elif pitch_correct and time_diff <= timing_tolerance * 2:
-            status = 'correct_slightly_off_time'
-        elif pitch_correct:
-            status = 'correct_wrong_time'
-        else:
-            status = 'wrong_note'
-        
-        details.append({
-            'expected_note': exp['note'],
-            'expected_time': round(exp['start_time'], 3),
-            'detected_note': det['note'],
-            'detected_time': round(det['start_time'], 3),
-            'time_difference': round(time_diff, 3),
-            'pitch_correct': pitch_correct,
-            'timing_correct': timing_correct,
-            'status': status
+    normalized_detected = []
+    for note in detected_notes:
+        normalized_detected.append({
+            'note': note['note'],
+            'start_time': note['start_time'] - detected_start,
+            'duration': note.get('duration', 0),
+            'original_time': note['start_time']
         })
     
-    # Add missed notes
-    for i in range(n_expected):
-        if i not in row_ind:
-            exp = expected_notes[i]
-            details.append({
-                'expected_note': exp['note'],
-                'expected_time': round(exp['start_time'], 3),
-                'detected_note': None,
-                'detected_time': None,
-                'pitch_correct': False,
-                'timing_correct': False,
-                'status': 'missed'
+        normalized_expected = []
+        for note in expected_notes:
+            normalized_expected.append({
+                'note': note['note'],
+                'start_time': note['start_time'] - expected_start,
+                'duration': note.get('duration', 0),
+                'original_time': note['start_time']  # ← FIX: use note['start_time'] not note['original_time']
             })
     
-    # Add extra notes
-    for j in range(n_detected):
-        if j not in matched_detected:
-            det = detected_notes[j]
-            details.append({
+    print(f"--- Normalized to start at 0 (detected started at {detected_start:.3f}s) ---", file=sys.stderr)
+    
+    # Step 2: Calculate relative intervals (time between consecutive notes)
+    def get_intervals(notes):
+        intervals = []
+        for i in range(len(notes) - 1):
+            interval = notes[i + 1]['start_time'] - notes[i]['start_time']
+            intervals.append(interval)
+        return intervals
+    
+    detected_intervals = get_intervals(normalized_detected)
+    expected_intervals = get_intervals(normalized_expected)
+    
+    # Step 3: Find the tempo scale factor using all intervals
+    if len(detected_intervals) > 0 and len(expected_intervals) > 0:
+        num_intervals = min(len(detected_intervals), len(expected_intervals), 10)
+        tempo_ratios = []
+        
+        for i in range(num_intervals):
+            if expected_intervals[i] > 0.05:
+                ratio = detected_intervals[i] / expected_intervals[i]
+                tempo_ratios.append(ratio)
+        
+        if tempo_ratios:
+            tempo_scale = np.median(tempo_ratios)
+            print(f"--- Detected tempo scale: {tempo_scale:.3f}x (1.0 = perfect tempo) ---", file=sys.stderr)
+        else:
+            tempo_scale = 1.0
+    else:
+        tempo_scale = 1.0
+    
+    # Step 4: Scale expected timings to match detected tempo
+    scaled_expected = []
+    for note in normalized_expected:
+        scaled_expected.append({
+            'note': note['note'],
+            'start_time': note['start_time'] * tempo_scale,
+            'duration': note['duration'] * tempo_scale,
+            'original_time': note['original_time']
+        })
+    
+    # Step 5: SEQUENTIAL MATCHING WITH WRONG NOTE INSERTION
+    all_results = []
+    correct_pitch = 0
+    correct_timing = 0
+    pitch_mistakes = 0  # Count mistake "groups"
+    timing_mistakes = 0  # Count timing issues on CORRECT notes only
+    
+    expected_idx = 0
+    last_matched_detected_idx = -1
+    currently_making_mistake = False  # Track if we're in a "mistake streak"
+    
+    for detected_idx in range(n_detected):
+        det = normalized_detected[detected_idx]
+        det_note = normalize_note_name(det['note'])
+        
+        # Check if we've finished the expected sequence
+        if expected_idx >= n_expected:
+            # Extra notes after song is done
+            if not currently_making_mistake:
+                pitch_mistakes += 1
+                currently_making_mistake = True
+            
+            # Don't count timing for wrong notes
+            
+            all_results.append({
                 'expected_note': None,
-                'expected_time': None,
+                'expected_position': None,
                 'detected_note': det['note'],
-                'detected_time': round(det['start_time'], 3),
+                'detected_position': detected_idx,
+                'detected_time_normalized': round(float(det['start_time']), 3),
                 'pitch_correct': False,
                 'timing_correct': False,
                 'status': 'extra'
             })
+            continue
+        
+        # Get current expected note
+        exp = scaled_expected[expected_idx]
+        exp_note = normalize_note_name(exp['note'])
+        
+        # Check if this detected note matches the current expected note
+        if det_note == exp_note:
+            # MATCH! This is the correct note
+            correct_pitch += 1
+            currently_making_mistake = False  # Reset mistake streak
+            
+            # Check rhythm (timing relative to previous matched note)
+            # ONLY check timing for CORRECT notes
+            timing_correct = False
+            time_diff = abs(exp['start_time'] - det['start_time'])
+            
+            if expected_idx > 0 and last_matched_detected_idx >= 0:
+                # Compare interval from previous matched note
+                prev_exp_idx = expected_idx - 1
+                prev_det_idx = last_matched_detected_idx
+                
+                expected_interval = exp['start_time'] - scaled_expected[prev_exp_idx]['start_time']
+                detected_interval = det['start_time'] - normalized_detected[prev_det_idx]['start_time']
+                
+                if expected_interval > 0.05:
+                    interval_ratio = detected_interval / expected_interval
+                    rhythm_tolerance = 0.35  # 35% tolerance
+                    if 1 - rhythm_tolerance <= interval_ratio <= 1 + rhythm_tolerance:
+                        timing_correct = True
+                    else:
+                        timing_mistakes += 1  # Timing was off for this correct note
+                else:
+                    # Very close notes, check absolute timing
+                    if time_diff <= timing_tolerance * tempo_scale * 2:
+                        timing_correct = True
+                    else:
+                        timing_mistakes += 1
+            else:
+                # First note - just check absolute timing (more lenient)
+                if time_diff <= timing_tolerance * tempo_scale * 3:
+                    timing_correct = True
+                else:
+                    timing_mistakes += 1
+            
+            if timing_correct:
+                correct_timing += 1
+            
+            status = 'perfect' if timing_correct else 'correct_rhythm_off'
+            
+            all_results.append({
+                'expected_note': exp['note'],
+                'expected_position': expected_idx,
+                'detected_note': det['note'],
+                'detected_position': detected_idx,
+                'expected_time_scaled': round(float(exp['start_time']), 3),
+                'detected_time_normalized': round(float(det['start_time']), 3),
+                'time_difference': round(float(time_diff), 3),
+                'pitch_correct': True,
+                'timing_correct': bool(timing_correct),
+                'status': status
+            })
+            
+            # Move to next expected note
+            expected_idx += 1
+            last_matched_detected_idx = detected_idx
+            
+        else:
+            # WRONG NOTE! This doesn't match the expected note
+            # Only count as ONE pitch mistake if we're in a mistake streak
+            if not currently_making_mistake:
+                pitch_mistakes += 1
+                currently_making_mistake = True
+            
+            # DON'T count timing for wrong notes - ignore them completely for timing
+            
+            all_results.append({
+                'expected_note': exp['note'],
+                'expected_position': expected_idx,
+                'detected_note': det['note'],
+                'detected_position': detected_idx,
+                'expected_time_scaled': round(float(exp['start_time']), 3),
+                'detected_time_normalized': round(float(det['start_time']), 3),
+                'time_difference': round(float(abs(exp['start_time'] - det['start_time'])), 3),
+                'pitch_correct': False,
+                'timing_correct': False,
+                'status': 'wrong_note'
+            })
     
-    # Sort by time
-    details.sort(key=lambda x: x['expected_time'] if x['expected_time'] is not None else x['detected_time'])
+    # Check for missed notes (expected notes that were never played)
+    missed_count = n_expected - correct_pitch
+    for exp_idx in range(expected_idx, n_expected):
+        exp = scaled_expected[exp_idx]
+        pitch_mistakes += 1  # Each missed note is a pitch mistake
+        timing_mistakes += 1  # Each missed note is also a timing mistake (note never came)
+        
+        all_results.append({
+            'expected_note': exp['note'],
+            'expected_position': exp_idx,
+            'detected_note': None,
+            'detected_position': None,
+            'expected_time_scaled': round(float(exp['start_time']), 3),
+            'pitch_correct': False,
+            'timing_correct': False,
+            'status': 'missed'
+        })
+    
+    # Sort results by detected position
+    all_results.sort(key=lambda x: x['detected_position'] if x['detected_position'] is not None else 999999)
     
     # Calculate accuracy
-    pitch_accuracy = (correct_pitch / n_expected) * 100
-    timing_accuracy = (correct_timing / n_expected) * 100
+    # Pitch accuracy: based on mistake "groups"
+    pitch_accuracy = max(0, ((n_expected - pitch_mistakes) / n_expected) * 100)
+    
+    # Timing accuracy: based on timing issues for CORRECT notes only + missed notes
+    timing_accuracy = max(0, ((n_expected - timing_mistakes) / n_expected) * 100)
+    
+    # Overall score
     overall_score = (pitch_accuracy * 0.6 + timing_accuracy * 0.4)
+    
+    print(f"--- Correct Notes: {correct_pitch}/{n_expected} ---", file=sys.stderr)
+    print(f"--- Pitch Mistakes (groups): {pitch_mistakes} ---", file=sys.stderr)
+    print(f"--- Timing Mistakes (on correct notes only): {timing_mistakes} ---", file=sys.stderr)
+    print(f"--- Missed Notes: {missed_count} ---", file=sys.stderr)
+    print(f"--- Pitch Accuracy: {pitch_accuracy:.2f}% ---", file=sys.stderr)
+    print(f"--- Timing Accuracy: {timing_accuracy:.2f}% ---", file=sys.stderr)
     
     return {
         'pitch_accuracy': round(pitch_accuracy, 2),
         'timing_accuracy': round(timing_accuracy, 2),
+        'rhythm_accuracy': round(timing_accuracy, 2),
         'overall_score': round(overall_score, 2),
         'total_expected': int(n_expected),
         'total_detected': int(n_detected),
         'correct_notes': int(correct_pitch),
+        'pitch_mistakes': int(pitch_mistakes),
+        'timing_mistakes': int(timing_mistakes),
+        'missed_notes': int(missed_count),
         'on_time_notes': int(correct_timing),
-        'details': details
+        'tempo_scale': round(float(tempo_scale), 3),
+        'details': all_results
     }
 
 
@@ -512,6 +659,8 @@ def main():
             print(f"--- Timing Accuracy: {comparison['timing_accuracy']}% ---", file=sys.stderr)
             print(f"--- Overall Score: {comparison['overall_score']}% ---", file=sys.stderr)
     
+    # Make sure everything is JSON serializable
+    output = make_json_serializable(output)
     print(json.dumps(output, indent=2))
 
 
