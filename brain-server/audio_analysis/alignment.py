@@ -8,7 +8,7 @@ import numpy as np
 
 def normalize_note_name(note_name):
     """
-    Normalize note names to handle enharmonic equivalents
+    Normalize note names to handle enharmonic equivalents ('bemol' --> 'diez')
     (e.g., C# = Db, D# = Eb, etc.)
     """
     # Mapping of flats to sharps
@@ -47,6 +47,8 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     if n_detected == 0:
         details = []
         for exp in expected_notes:
+            # No notes detection, so I'll classify every note as missing
+            # (Adding this to details of performance)
             details.append({
                 'expected_note': exp['note'],
                 'expected_time': round(exp['start_time'], 3),
@@ -69,6 +71,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             'details': details
         }
     
+    # Matching the tempo of the performance and the sheet music
     # Step 1: Normalize both sequences to start at time 0
     detected_start = detected_notes[0]['start_time']
     expected_start = expected_notes[0]['start_time']
@@ -106,15 +109,18 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     
     # Step 3: Find the tempo scale factor using all intervals
     if len(detected_intervals) > 0 and len(expected_intervals) > 0:
+        # Only 10 intervals, relevant for if the tempo will change in the rest of the song
         num_intervals = min(len(detected_intervals), len(expected_intervals), 10)
         tempo_ratios = []
         
         for i in range(num_intervals):
+            # Safety check for extremely short intervals which are probably irrelevant
             if expected_intervals[i] > 0.05:
                 ratio = detected_intervals[i] / expected_intervals[i]
                 tempo_ratios.append(ratio)
         
         if tempo_ratios:
+            # I chose median rather than average to not take mistakes into account
             tempo_scale = np.median(tempo_ratios)
             print(f"--- Detected tempo scale: {tempo_scale:.3f}x (1.0 = perfect tempo) ---", file=sys.stderr)
         else:
@@ -123,6 +129,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         tempo_scale = 1.0
     
     # Step 4: Scale expected timings to match detected tempo
+    # 'Stretches' the sheet music to match tempo of performance :)
     scaled_expected = []
     for note in normalized_expected:
         scaled_expected.append({
@@ -133,6 +140,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
         })
     
     # Step 5: SEQUENTIAL MATCHING WITH WRONG NOTE INSERTION
+    # The actual comparison between results - the important part
     all_results = []
     correct_pitch = 0
     correct_timing = 0
@@ -174,6 +182,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             
             # Check timing ONLY for CORRECT notes
             timing_correct = False
+            # Time diff between deteced note and expected note
             time_diff = abs(exp['start_time'] - det['start_time'])
             
             if expected_idx > 0 and last_matched_detected_idx >= 0:
@@ -186,7 +195,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
                 
                 if expected_interval > 0.05:
                     interval_ratio = detected_interval / expected_interval
-                    rhythm_tolerance = 0.35  # 35% tolerance
+                    rhythm_tolerance = 0.3  # 30% rhythm tolerance (for timing mistakes)
                     if 1 - rhythm_tolerance <= interval_ratio <= 1 + rhythm_tolerance:
                         timing_correct = True
                     else:
@@ -198,7 +207,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
                     else:
                         timing_mistakes += 1
             else:
-                # First note - just check absolute timing (more lenient)
+                # First note - just check absolute timing
                 if time_diff <= timing_tolerance * tempo_scale * 3:
                     timing_correct = True
                 else:
@@ -263,10 +272,10 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
             'status': 'missed'
         })
     
-    # Sort results by detected position
+    # Sort results by detected position - missed notes are last
     all_results.sort(key=lambda x: x['detected_position'] if x['detected_position'] is not None else 9999)
     
-    # PITCH ACCURACY CALCULATION (as specified):
+    # PITCH ACCURACY CALCULATION:
     # Start at 0, +1/n for each correct note, -1/n for each wrong note
     pitch_score = correct_pitch - wrong_notes_count  # Net score
     pitch_accuracy = (pitch_score / n_expected) * 100
@@ -277,7 +286,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     # timing_mistakes already counts only timing issues on correct notes + missed notes
     timing_accuracy = max(0, ((n_expected - timing_mistakes) / n_expected) * 100)
     
-    # Overall score
+    # Overall score - according to 0.6 part for pitch, 0.4 for timing (less important)
     overall_score = (pitch_accuracy * 0.6 + timing_accuracy * 0.4)
     
     print(f"--- Correct Notes: {correct_pitch}/{n_expected} ---", file=sys.stderr)

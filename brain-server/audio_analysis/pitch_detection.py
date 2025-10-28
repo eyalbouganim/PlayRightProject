@@ -52,6 +52,7 @@ def freq_to_note(frequency):
 def detect_pitch_robust(segment, sample_rate, n_fft=2048):
     """
     Robust pitch detection using YIN + HPS (Harmonic Product Spectrum)
+    Takes small pitch of audio to find the fundemental frequency
     """
     try:
         # YIN algorithm for fundamental frequency
@@ -81,7 +82,8 @@ def detect_pitch_robust(segment, sample_rate, n_fft=2048):
         freqs = librosa.fft_frequencies(sr=sample_rate, n_fft=n_fft)
         f0_hps = freqs[np.argmax(D_hps)]
         
-        # Combine results
+        # Combine results: If both methods are quite similar - avg of them
+        # else: Go according to YIN
         ratio = f0_hps / median_freq_yin if median_freq_yin > 0 else 0
         if 0.85 < ratio < 1.15:
             return (0.5 * median_freq_yin + 0.5 * f0_hps)

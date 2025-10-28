@@ -29,10 +29,11 @@ def parse_musicxml(xml_path, tempo=120):
     current_time = 0.0
     divisions = 1  # Default divisions per quarter note
     
-    # Iterate through all parts
+    # Iterate through all parts (piano, guitar, or something else)
     for part in root.findall('.//part', ns) or root.findall('.//part'):
         current_time = 0.0
         
+        # Going through every notes box (Teiva ba-tavim)
         for measure in part.findall('.//measure', ns) or part.findall('.//measure'):
             # Check for divisions (timing resolution)
             attributes = measure.find('.//attributes', ns) or measure.find('.//attributes')

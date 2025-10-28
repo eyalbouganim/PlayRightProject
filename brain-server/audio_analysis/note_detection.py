@@ -10,7 +10,7 @@ from pitch_detection import detect_pitch_robust, freq_to_note
 
 def detect_notes_improved(audio_path, sample_rate=22050, min_db=-38):
     """
-    Improved note detection using techniques from streaming script
+    Improved note detection
     """
     print(f"--- Loading audio file: {audio_path} ---", file=sys.stderr)
     
@@ -33,7 +33,7 @@ def detect_notes_improved(audio_path, sample_rate=22050, min_db=-38):
             y=y, 
             sr=sr,
             units='frames', 
-            backtrack=True, 
+            backtrack=True, # according to loudest point in note
             delta=0.25,  # Sensitivity threshold
             wait=4       # Minimum frames between onsets
         )
@@ -45,6 +45,7 @@ def detect_notes_improved(audio_path, sample_rate=22050, min_db=-38):
         print("--- No onsets detected ---", file=sys.stderr)
         return []
     
+    # Converting start of notes with frames to seconds
     onset_times = librosa.frames_to_time(onset_frames, sr=sr)
     detected_notes = []
     
@@ -72,7 +73,7 @@ def detect_notes_improved(audio_path, sample_rate=22050, min_db=-38):
         if db < min_db:
             continue
         
-        # Spectral flatness check (filter out noise)
+        # Spectral flatness check (many freqs or major one) (filter out noise)
         spectral_flatness = np.mean(librosa.feature.spectral_flatness(y=analysis_frame))
         if spectral_flatness > 0.05:  # Too noisy
             continue
