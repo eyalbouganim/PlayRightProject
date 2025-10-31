@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import './login.css'; // We'll create this for basic styling
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+
+// MUI Imports
+import {
+    Container,
+    Box,
+    TextField,
+    Button,
+    Typography,
+    Link,
+    Alert,
+    CircularProgress
+} from '@mui/material';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -42,7 +53,6 @@ const Login = () => {
             localStorage.setItem('token', data.token);
 
             // Redirect to the main performance analysis page
-            // Assuming your main app page is at the '/analyze' route
             navigate('/recording');
 
         } catch (err) {
@@ -53,38 +63,70 @@ const Login = () => {
     };
 
     return (
-        <div className="login-container">
-            <form className="login-form" onSubmit={handleSubmit}>
-                <h2>Login to PlayRight</h2>
-                {error && <p className="error-message">{error}</p>}
-                <div className="form-group">
-                    <label htmlFor="email">Email</label>
-                    <input
-                        type="email"
+        <Container
+            component="main"
+            maxWidth="xs"
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '100vh',
+            }}
+        >
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    p: 4,
+                    borderRadius: 2,
+                    bgcolor: 'secondary.main', // Using the semi-transparent "glass" color from your theme
+                    backdropFilter: 'blur(10px)', // This creates the blur effect for glassmorphism
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                }}
+            >
+                <Typography component="h1" variant="h4" sx={{ color: 'white', mb: 2 }}>
+                    Login
+                </Typography>
+                <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+                    {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
                         id="email"
+                        label="Email Address"
+                        name="email"
+                        autoComplete="email"
+                        autoFocus
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        required
                     />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <input
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        name="password"
+                        label="Password"
                         type="password"
                         id="password"
+                        autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        required
                     />
-                </div>
-                <button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Logging in...' : 'Login'}
-                </button>
-                <p className="register-link">
-                    Don't have an account? <Link to="/register">Register here</Link>
-                </p>
-            </form>
-        </div>
+                    <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={isLoading}>
+                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
+                    </Button>
+                    <Typography variant="body2" align="center">
+                        {"Don't have an account? "}
+                        <Link component={RouterLink} to="/register" variant="body2">
+                            {"Register here"}
+                        </Link>
+                    </Typography>
+                </Box>
+            </Box>
+        </Container>
     );
 };
 
