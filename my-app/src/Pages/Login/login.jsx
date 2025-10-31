@@ -51,9 +51,10 @@ const Login = () => {
             // --- Login successful ---
             // Store the token in localStorage for persistence across browser sessions
             localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user)); // Store user info
 
             // Redirect to the main performance analysis page
-            navigate('/recording');
+            navigate('/home');
 
         } catch (err) {
             setError(err.message);

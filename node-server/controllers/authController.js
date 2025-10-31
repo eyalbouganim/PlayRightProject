@@ -10,10 +10,10 @@ const logger = require('../utils/logger');
  */
 const register = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { firstName, lastName, email, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required.' });
+        if (!firstName || !lastName || !email || !password) {
+            return res.status(400).json({ message: 'All fields are required.' });
         }
 
         // Check if user already exists
@@ -27,7 +27,12 @@ const register = async (req, res) => {
         const password_hash = await bcrypt.hash(password, saltRounds);
 
         // Create user
-        const newUser = await User.create({ email, password_hash });
+        const newUser = await User.create({
+            first_name: firstName,
+            last_name: lastName,
+            email,
+            password_hash
+        });
 
         logger.info(`New user registered: ${newUser.email}`);
         res.status(201).json({ message: 'User registered successfully.', userId: newUser.id });
@@ -68,7 +73,14 @@ const login = async (req, res) => {
         // Sign the token
         const token = jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
-        res.json({ message: 'Login successful', token });
+        res.json({
+            message: 'Login successful',
+            token,
+            user: {
+                firstName: user.first_name,
+                lastName: user.last_name,
+            }
+        });
     } catch (error) {
         logger.error('Error during user login:', error);
         res.status(500).json({ message: 'Internal server error during login.' });

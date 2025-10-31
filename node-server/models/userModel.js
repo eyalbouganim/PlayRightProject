@@ -19,6 +19,14 @@ User.init({
             isEmail: true // Built-in validation for email format
         }
     },
+    first_name: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    last_name: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     password_hash: {
         type: DataTypes.STRING,
         allowNull: false

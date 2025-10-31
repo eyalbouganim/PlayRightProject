@@ -8,6 +8,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Recording from "./Pages/Recording/recording.jsx";
 import Login from "./Pages/Login/login.jsx";
+import Home from "./Pages/Home/home.jsx";
+import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import ProtectedLayout from "./auth/ProtectedLayout.jsx";
 import Register from "./Pages/Register/register.jsx";
 
 // Create a custom theme instance to define the application's color scheme.
@@ -34,10 +37,19 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
+          {/* Public routes that anyone can access */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/recording" element={<Recording />} />
+
+          {/* This route protects its children. If not logged in, it redirects to /login */}
+          <Route element={<ProtectedRoute />}>
+            {/* This route provides the layout (AppBar) for its children */}
+            <Route element={<ProtectedLayout />}>
+              <Route path="/home" element={<Home />} />
+              <Route path="/recording" element={<Recording />} />
+              <Route path="/" element={<Navigate to="/home" replace />} />
+            </Route>
+          </Route>
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

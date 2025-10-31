@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import './register.css'; // Using a separate CSS file for consistency
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+
+// MUI Imports
+import {
+    Container,
+    Box,
+    TextField,
+    Button,
+    Typography,
+    Link,
+    Alert,
+    CircularProgress,
+    Grid
+} from '@mui/material';
 
 const Register = () => {
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -16,8 +30,8 @@ const Register = () => {
         setSuccess('');
         setIsLoading(true);
 
-        if (!email || !password) {
-            setError('Email and password are required.');
+        if (!firstName || !lastName || !email || !password) {
+            setError('All fields are required.');
             setIsLoading(false);
             return;
         }
@@ -28,7 +42,7 @@ const Register = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ firstName, lastName, email, password }),
             });
 
             const data = await response.json();
@@ -53,27 +67,62 @@ const Register = () => {
     };
 
     return (
-        <div className="register-container">
-            <form className="register-form" onSubmit={handleSubmit}>
-                <h2>Create an Account</h2>
-                {error && <p className="error-message">{error}</p>}
-                {success && <p className="success-message">{success}</p>}
-                <div className="form-group">
-                    <label htmlFor="email">Email</label>
-                    <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                </div>
-                <button type="submit" disabled={isLoading || success}>
-                    {isLoading ? 'Registering...' : 'Register'}
-                </button>
-                <p className="login-link">
-                    Already have an account? <Link to="/login">Login here</Link>
-                </p>
-            </form>
-        </div>
+        <Container
+            component="main"
+            maxWidth="xs"
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '100vh',
+            }}
+        >
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    p: 4,
+                    borderRadius: 2,
+                    bgcolor: 'secondary.main',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                }}
+            >
+                <Typography component="h1" variant="h4" sx={{ color: 'white', mb: 2 }}>
+                    Sign Up
+                </Typography>
+                <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3 }}>
+                    {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+                    {success && <Alert severity="success" sx={{ width: '100%', mb: 2 }}>{success}</Alert>}
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField autoComplete="given-name" name="firstName" required fullWidth id="firstName" label="First Name" autoFocus value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField required fullWidth id="lastName" label="Last Name" name="lastName" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField required fullWidth id="email" label="Email Address" name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField required fullWidth name="password" label="Password" type="password" id="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        </Grid>
+                    </Grid>
+                    <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={isLoading || !!success}>
+                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
+                    </Button>
+                    <Grid container justifyContent="flex-end">
+                        <Grid item>
+                            <Link component={RouterLink} to="/login" variant="body2">
+                                Already have an account? Login
+                            </Link>
+                        </Grid>
+                    </Grid>
+                </Box>
+            </Box>
+        </Container>
     );
 };
 
