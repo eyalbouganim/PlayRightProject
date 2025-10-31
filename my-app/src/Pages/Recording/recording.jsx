@@ -91,8 +91,21 @@ const Recording = () => {
             const formData = new FormData();
             formData.append('musicXmlFile', file);
 
+            // Get the token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('You are not logged in. Please log in to upload files.');
+                throw new Error('Authentication token not found');
+            }
+
+            // Add the Authorization header to the request
+            const headers = {
+                'Authorization': `Bearer ${token}`
+            };
+
             const uploadResponse = await fetch('http://localhost:3001/api/performances/upload-musicxml', {
                 method: 'POST',
+                headers: headers,
                 body: formData
             });
 
@@ -162,9 +175,22 @@ const Recording = () => {
         formData.append('tempo', tempo.toString());
         formData.append('timingTolerance', timingTolerance.toString());
 
+        // Get the token from localStorage for the analysis request
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Authentication error. Please log in again.');
+            setIsScoring(false);
+            return;
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${token}`
+        };
+
         fetch('http://localhost:3001/api/performances/analyze', { 
             method: 'POST', 
-            body: formData 
+            body: formData,
+            headers: headers
         })
             .then(response => {
                 if (!response.ok) {
