@@ -17,17 +17,41 @@ import Register from "./Pages/Register/register.jsx";
 // Create a custom theme instance to define the application's color scheme.
 const theme = createTheme({
   palette: {
-    mode: 'dark', // A dark mode background makes the glass effect more prominent.
+    mode: 'light', // Set to light mode for readability
     primary: {
-      main: '#03a9f4', // A vibrant light blue
+      main: '#1976d2', // A strong, accessible primary blue
     },
     secondary: {
-      main: 'rgba(255, 255, 255, 0.7)', // This is the "glass" color - semi-transparent white
+      main: '#42a5f5', // A lighter, vibrant blue for accents
     },
     background: {
-      default: '#212121',
-      paper: '#333333',
+      default: '#f0f8ff', // A very light blue (AliceBlue) as a fallback
+      // Paper elements will have a semi-transparent "frosted glass" look
+      paper: 'rgba(255, 255, 255, 0.7)',
     },
+    text: {
+      primary: 'rgba(0, 0, 0, 0.87)', // Standard dark text for light themes
+      secondary: 'rgba(0, 0, 0, 0.6)',
+    }
+  },
+  components: {
+    // Apply the beautiful gradient background to the whole app
+    MuiCssBaseline: {
+      styleOverrides: `
+        body {
+          background: linear-gradient(to bottom, #e3f2fd, #f0f8ff);
+          background-attachment: fixed;
+        }
+      `,
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'rgba(255, 255, 255, 0.6)', // Semi-transparent AppBar
+          backdropFilter: 'blur(10px)',
+        }
+      }
+    }
   },
 });
 

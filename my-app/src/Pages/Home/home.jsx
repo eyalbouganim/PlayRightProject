@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
 const Home = () => {
@@ -11,16 +11,17 @@ const Home = () => {
     };
 
     return (
-        <Container
+        <Box
             component="main"
             sx={{
+                width: '100%',
+                flexGrow: 1, // Make the box fill the remaining vertical space
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-around', // Pushes title up and button down
-                minHeight: '100vh',
+                justifyContent: 'space-around', // Pushes title up and button down, vertically
                 textAlign: 'center',
-                py: 4, // Padding on top and bottom
+                p: { xs: 2, sm: 4, md: 6 }, // Adjusted responsive padding
             }}
         >
             <Box>
@@ -45,6 +46,7 @@ const Home = () => {
                 onClick={handlePracticeClick}
                 startIcon={<MusicNoteIcon />}
                 sx={{
+                    mt: 4, // Add some margin to separate from the title
                     padding: '15px 40px',
                     fontSize: '1.2rem',
                     borderRadius: '50px', // Pill shape button
@@ -53,7 +55,7 @@ const Home = () => {
             >
                 Go to Practice
             </Button>
-        </Container>
+        </Box>
     );
 };
 

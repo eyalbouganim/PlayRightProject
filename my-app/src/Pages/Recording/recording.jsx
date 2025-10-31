@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import {
+    Container,
+    Box,
+    Typography,
+    Button,
+    Paper,
+    Grid,
+    TextField,
+    Stack,
+    Chip
+} from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useAudioStream } from '../../hooks/useAudioStream';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import LiveRecorder from './components/LiveRecorder';
 import SheetMusicDisplay from './components/SheetMusicDisplay';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
-import './recording.css';
 
 // Default Twinkle Twinkle Little Star MusicXML
 const defaultMusicXML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -283,60 +294,64 @@ const Recording = () => {
     };
 
     return (
-        <div className="recording-page">
-            {/* File Upload */}
-            <div className="upload-section">
-                <label htmlFor="musicxml-upload" className="upload-label">
-                    📁 Upload MusicXML file (or use default Twinkle Twinkle):
-                    <input
-                        id="musicxml-upload"
-                        type="file"
-                        accept=".xml,.musicxml"
-                        onChange={handleFileUpload}
-                        className="file-input"
-                    />
-                </label>
+        <Container maxWidth="lg" sx={{ my: 4 }}>
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+                <Grid container spacing={3} alignItems="center">
+                    <Grid item xs={12} md={6}>
+                        <Button
+                            variant="outlined"
+                            component="label"
+                            startIcon={<UploadFileIcon />}
+                            fullWidth
+                        >
+                            Upload MusicXML
+                            <input
+                                type="file"
+                                hidden
+                                accept=".xml,.musicxml"
+                                onChange={handleFileUpload}
+                            />
+                        </Button>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">
+                            Or use the default "Twinkle Twinkle Little Star".
+                        </Typography>
+                    </Grid>
+                </Grid>
                 {uploadedFileName && (
-                    <div className="upload-success">
-                        ✓ Uploaded: {uploadedFileName}
-                    </div>
+                    <Chip label={`Uploaded: ${uploadedFileName}`} color="success" sx={{ mt: 2 }} />
                 )}
-            </div>
+            </Paper>
 
-            {/* Tempo and Tolerance Settings */}
-            <div className="settings-section">
-                <div className="setting-item">
-                    <label htmlFor="tempo-input">Tempo (BPM):</label>
-                    <input
-                        id="tempo-input"
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+                    <TextField
+                        label="Tempo (BPM)"
                         type="number"
-                        min="40"
-                        max="240"
+                        inputProps={{ min: 40, max: 240 }}
                         value={tempo}
                         onChange={(e) => setTempo(parseInt(e.target.value))}
-                        className="setting-input"
+                        variant="outlined"
                     />
-                </div>
-                <div className="setting-item">
-                    <label htmlFor="tolerance-input">Timing Tolerance (seconds):</label>
-                    <input
-                        id="tolerance-input"
+                    <TextField
+                        label="Timing Tolerance (s)"
                         type="number"
-                        min="0.1"
-                        max="1.0"
-                        step="0.1"
+                        inputProps={{ min: 0.1, max: 1.0, step: 0.1 }}
                         value={timingTolerance}
                         onChange={(e) => setTimingTolerance(parseFloat(e.target.value))}
-                        className="setting-input"
+                        variant="outlined"
                     />
-                </div>
-            </div>
+                </Stack>
+            </Paper>
 
-            <SheetMusicDisplay
-                musicXML={musicXML}
-                currentTargetNoteIndex={currentTargetNoteIndex}
-                noteStatuses={noteStatuses}
-            />
+            <Paper elevation={3} sx={{ p: 2, mb: 3, overflowX: 'auto' }}>
+                <SheetMusicDisplay
+                    musicXML={musicXML}
+                    currentTargetNoteIndex={currentTargetNoteIndex}
+                    noteStatuses={noteStatuses}
+                />
+            </Paper>
 
             <LiveRecorder
                 isConnected={streamHook.isConnected}
@@ -352,17 +367,19 @@ const Recording = () => {
             />
 
             {currentTargetNoteIndex >= songToPlay.length && !isRecording && songToPlay.length > 0 && (
-                <div className="completion-message"><h2>🎉 Well Done! 🎉</h2></div>
+                <Typography variant="h4" color="primary" align="center" sx={{ mt: 4 }}>
+                    🎉 Well Done! 🎉
+                </Typography>
             )}
 
             {playbackUrl && (
-                <div className="playback-container">
-                    <h4>Listen to your performance:</h4>
+                <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
+                    <Typography variant="h6">Listen to your performance:</Typography>
                     <audio src={playbackUrl} controls />
-                    {isScoring && <p>Calculating your score...</p>}
-                </div>
+                    {isScoring && <Typography variant="body2" sx={{ mt: 1 }}>Calculating your score...</Typography>}
+                </Paper>
             )}
-        </div>
+        </Container>
     );
 };
 

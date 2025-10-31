@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
-import './SheetMusicDisplay.css';
+import { Box, Typography, CircularProgress, Alert } from '@mui/material';
 
 const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
     const osmdContainerRef = useRef(null);
@@ -176,11 +176,24 @@ const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
     }, [currentTargetNoteIndex, osmdRendered]);
 
     return (
-        <div className="sheet-music-display-container">
-            {isLoading && <p>Loading Sheet Music...</p>}
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            <div ref={osmdContainerRef} />
-        </div>
+        <Box sx={{ minHeight: 200, position: 'relative' }}>
+            {isLoading && (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', position: 'absolute', width: '100%' }}>
+                    <CircularProgress />
+                    <Typography sx={{ ml: 2 }}>Loading Sheet Music...</Typography>
+                </Box>
+            )}
+            {error && (
+                <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>
+            )}
+            <Box
+                ref={osmdContainerRef}
+                sx={{
+                    visibility: isLoading || error ? 'hidden' : 'visible',
+                    bgcolor: 'white', // Set the background of the sheet music to white
+                }}
+            />
+        </Box>
     );
 };
 
