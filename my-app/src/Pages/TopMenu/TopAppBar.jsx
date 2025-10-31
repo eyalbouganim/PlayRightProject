@@ -26,8 +26,7 @@ const TopAppBar = () => {
 
     const handleProfile = () => {
         // Placeholder for profile page navigation
-        console.log('Navigate to profile page');
-        // navigate('/profile'); 
+        navigate('/profile'); 
     };
 
     const handleHome = () => {

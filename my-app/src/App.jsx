@@ -10,6 +10,7 @@ import Recording from "./Pages/Recording/recording.jsx";
 import Login from "./Pages/Login/login.jsx";
 import Home from "./Pages/Home/home.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import Profile from "./Pages/Profile/profile.jsx";
 import ProtectedLayout from "./auth/ProtectedLayout.jsx";
 import Register from "./Pages/Register/register.jsx";
 
@@ -46,6 +47,7 @@ function App() {
             {/* This route provides the layout (AppBar) for its children */}
             <Route element={<ProtectedLayout />}>
               <Route path="/home" element={<Home />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/recording" element={<Recording />} />
               <Route path="/" element={<Navigate to="/home" replace />} />
             </Route>

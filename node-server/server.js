@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const health = require('./routes/health');
 const performances = require('./routes/performances');
 const auth = require('./routes/auth'); // Import auth routes
+const users = require('./routes/user'); // Import user routes
 const config = require('./config/config');
 const audioController = require('./controllers/audioController');
 const { protect } = require('./middleware/authMiddleware'); // Import the protect middleware
@@ -36,6 +37,7 @@ app.get('/', (req, res) => {
 // Routes
 app.use('/health', health);
 app.use('/api/performances', protect, performances); // Protect the performances route
+app.use('/api/users', protect, users); // Protect all user-related routes
 app.use('/api/auth', auth); // Use auth routes
 
 // Define server and wss here so they are accessible by the shutdown function
