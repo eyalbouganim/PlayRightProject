@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Container,
     Box,
@@ -11,63 +12,37 @@ import {
     Chip
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import { useAudioStream } from '../../hooks/useAudioStream';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import LiveRecorder from './components/LiveRecorder';
 import SheetMusicDisplay from './components/SheetMusicDisplay';
+import { defaultMusicXML } from '../../assets/defaultMusicXML';
+import SongRetriever from './components/SongRetriever';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
 
-// Default Twinkle Twinkle Little Star MusicXML
-const defaultMusicXML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise version="4.0">
-    <part-list>
-        <score-part id="P1">
-            <part-name>Twinkle Twinkle Little Star</part-name>
-        </score-part>
-    </part-list>
-    <part id="P1">
-        <measure number="1">
-            <attributes>
-                <divisions>1</divisions>
-                <key><fifths>0</fifths></key>
-                <time><beats>4</beats><beat-type>4</beat-type></time>
-                <clef><sign>G</sign><line>2</line></clef>
-            </attributes>
-            <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-        </measure>
-        <measure number="2">
-            <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note>
-        </measure>
-        <measure number="3">
-            <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-        </measure>
-        <measure number="4">
-            <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
-            <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note>
-            <barline location="right"><bar-style>light-heavy</bar-style></barline>
-        </measure>
-    </part>
-</score-partwise>`;
-
 const Recording = () => {
+    const navigate = useNavigate();
     const streamHook = useAudioStream();
     const recorderHook = useAudioRecorder();
     const { notes: detectedNotes, isRecording } = streamHook;
 
+    // Get the auth token once for the entire component
+    const token = localStorage.getItem('token');
+
+    // EFFECT: Check for authentication token on component mount.
+    // If no token is found, redirect the user to the login page.
+    useEffect(() => {
+        if (!token) {
+            console.error("No authentication token found. Redirecting to login.");
+            navigate('/login');
+        }
+    }, [token, navigate]);
+
     // State
     const [musicXML, setMusicXML] = useState(defaultMusicXML);
-    const [uploadedMusicXmlPath, setUploadedMusicXmlPath] = useState(null);
     const [uploadedFileName, setUploadedFileName] = useState(null);
+    const [uploadedSongId, setUploadedSongId] = useState(null); // To store the ID of the uploaded song
     const [songToPlay, setSongToPlay] = useState([]);
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
     const [noteStatuses, setNoteStatuses] = useState([]);
@@ -76,6 +51,7 @@ const Recording = () => {
     const [playbackUrl, setPlaybackUrl] = useState(null);
     const [tempo, setTempo] = useState(120); // Default tempo
     const [timingTolerance, setTimingTolerance] = useState(0.3); // Default tolerance
+    const [isSongRetrieverOpen, setIsSongRetrieverOpen] = useState(false);
 
     // Parse MusicXML whenever it changes
     useEffect(() => {
@@ -98,38 +74,35 @@ const Recording = () => {
         if (!file) return;
 
         try {
-            // First, upload the MusicXML file to the server
+            // Upload the MusicXML file to create a new song entry
             const formData = new FormData();
             formData.append('musicXmlFile', file);
 
-            // Get the token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('You are not logged in. Please log in to upload files.');
-                throw new Error('Authentication token not found');
-            }
 
             // Add the Authorization header to the request
             const headers = {
                 'Authorization': `Bearer ${token}`
             };
 
-            const uploadResponse = await fetch('http://localhost:3001/api/performances/upload-musicxml', {
+            const uploadResponse = await fetch('http://localhost:3001/api/songs/upload', {
                 method: 'POST',
                 headers: headers,
                 body: formData
             });
 
             if (!uploadResponse.ok) {
-                throw new Error('Failed to upload MusicXML file');
+                // Handle auth error specifically
+                if (uploadResponse.status === 401 || uploadResponse.status === 403) {
+                    throw new Error('Not authorized, token failed');
+                }
+                throw new Error('Failed to upload and save song');
             }
 
             const uploadResult = await uploadResponse.json();
-            console.log('MusicXML uploaded:', uploadResult);
+            console.log('Song uploaded and saved:', uploadResult);
 
-            // Store the server file path
-            setUploadedMusicXmlPath(uploadResult.filePath);
-            setUploadedFileName(uploadResult.fileName);
+            setUploadedSongId(uploadResult.song.id);
+            setUploadedFileName(uploadResult.song.title);
 
             // Read the file content for display
             const reader = new FileReader();
@@ -139,10 +112,22 @@ const Recording = () => {
             };
             reader.readAsText(file);
 
-            alert(`MusicXML file "${uploadResult.fileName}" uploaded successfully!`);
+            alert(`Song "${uploadResult.song.title}" uploaded successfully!`);
         } catch (error) {
             console.error('Error uploading MusicXML:', error);
             alert('Failed to upload MusicXML file. Please try again.');
+        }
+    };
+
+    // Handle song selection from the retriever
+    const handleSongRetrieved = (song) => {
+        if (song && song.musicXml) {
+            console.log('Song retrieved:', song);
+            setMusicXML(song.musicXml);
+            setUploadedSongId(song.id);
+            setUploadedFileName(song.title);
+        } else {
+            alert('Could not load the selected song. The file might be corrupted or missing.');
         }
     };
 
@@ -174,25 +159,21 @@ const Recording = () => {
         setIsScoring(true);
         const formData = new FormData();
         formData.append('audioFile', audioBlob, 'performance.webm');
-        formData.append('songId', 'twinkle_twinkle');
 
-        // Add MusicXML path if available
-        if (uploadedMusicXmlPath) {
-            formData.append('musicXmlPath', uploadedMusicXmlPath);
-            console.log('Sending MusicXML path:', uploadedMusicXmlPath);
+        // The backend needs to know which song to compare against.
+        // We send the songId if we have one (from an upload or from 'My Songs').
+        // If not, we send 'default' so the backend knows to use the default song.
+        if (uploadedSongId) {
+            formData.append('songId', uploadedSongId);
+            console.log('Submitting performance for songId:', uploadedSongId);
+        } else {
+            formData.append('songId', 'default');
         }
 
         // Add tempo and timing tolerance
         formData.append('tempo', tempo.toString());
         formData.append('timingTolerance', timingTolerance.toString());
 
-        // Get the token from localStorage for the analysis request
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('Authentication error. Please log in again.');
-            setIsScoring(false);
-            return;
-        }
 
         const headers = {
             'Authorization': `Bearer ${token}`
@@ -258,14 +239,14 @@ const Recording = () => {
         if (recorderHook.audioBlob) {
             const url = URL.createObjectURL(recorderHook.audioBlob);
             setPlaybackUrl(url);
-            submitForScoring(recorderHook.audioBlob);
+            submitForScoring(recorderHook.audioBlob, uploadedSongId);
         }
         return () => {
             if (playbackUrl) {
                 URL.revokeObjectURL(playbackUrl);
             }
         };
-    }, [recorderHook.audioBlob]);
+    }, [recorderHook.audioBlob, uploadedSongId]);
 
     // Control Functions
     const handleStart = async () => {
@@ -295,55 +276,43 @@ const Recording = () => {
 
     return (
         <Container maxWidth="lg" sx={{ my: 4 }}>
-            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-                <Grid container spacing={3} alignItems="center">
-                    <Grid item xs={12} md={6}>
-                        <Button
-                            variant="outlined"
-                            component="label"
-                            startIcon={<UploadFileIcon />}
-                            fullWidth
-                        >
-                            Upload MusicXML
-                            <input
-                                type="file"
-                                hidden
-                                accept=".xml,.musicxml"
-                                onChange={handleFileUpload}
-                            />
-                        </Button>
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <Typography variant="body2" color="text.secondary">
-                            Or use the default "Twinkle Twinkle Little Star".
-                        </Typography>
-                    </Grid>
-                </Grid>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<UploadFileIcon />}
+                    size="small"
+                >
+                    Upload MusicXML
+                    <input
+                        type="file"
+                        hidden
+                        accept=".xml,.musicxml"
+                        onChange={handleFileUpload}
+                    />
+                </Button>
+                <Button
+                    variant="outlined"
+                    startIcon={<LibraryMusicIcon />}
+                    size="small"
+                    onClick={() => setIsSongRetrieverOpen(true)}
+                >
+                    Load My Songs
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                    Or use the default "Twinkle Twinkle Little Star".
+                </Typography>
                 {uploadedFileName && (
-                    <Chip label={`Uploaded: ${uploadedFileName}`} color="success" sx={{ mt: 2 }} />
+                    <Chip label={`Uploaded: ${uploadedFileName}`} color="success" size="small" />
                 )}
-            </Paper>
+            </Box>
 
-            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-                    <TextField
-                        label="Tempo (BPM)"
-                        type="number"
-                        inputProps={{ min: 40, max: 240 }}
-                        value={tempo}
-                        onChange={(e) => setTempo(parseInt(e.target.value))}
-                        variant="outlined"
-                    />
-                    <TextField
-                        label="Timing Tolerance (s)"
-                        type="number"
-                        inputProps={{ min: 0.1, max: 1.0, step: 0.1 }}
-                        value={timingTolerance}
-                        onChange={(e) => setTimingTolerance(parseFloat(e.target.value))}
-                        variant="outlined"
-                    />
-                </Stack>
-            </Paper>
+            <SongRetriever
+                open={isSongRetrieverOpen}
+                onClose={() => setIsSongRetrieverOpen(false)}
+                onSongSelected={handleSongRetrieved}
+                token={token}
+            />
 
             <Paper elevation={3} sx={{ p: 2, mb: 3, overflowX: 'auto' }}>
                 <SheetMusicDisplay

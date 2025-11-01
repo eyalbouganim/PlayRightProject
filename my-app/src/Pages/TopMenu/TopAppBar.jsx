@@ -12,7 +12,7 @@ const TopAppBar = () => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             const user = JSON.parse(storedUser);
-            setUserName(`${user.firstName} ${user.lastName}`);
+            setUserName(`${user.firstName}`);
         }
     }, []);
 
@@ -37,7 +37,7 @@ const TopAppBar = () => {
         <AppBar position="static" color="default" elevation={1}>
             <Toolbar>
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                    Hello, {userName}
+                    Hello {userName}
                 </Typography>
                 <IconButton color="inherit" aria-label="home" onClick={handleHome}>
                     <HomeIcon />
