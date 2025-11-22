@@ -85,4 +85,17 @@ router.get('/', (req, res) => {
     res.status(200).json({ status: 'Performance analysis service is running.' });
 });
 
+// Route to get performance statistics for a specific song
+router.get(
+    '/stats/song/:songId',
+    performancesController.getSongPerformanceStats
+);
+
+// Route to get the last 5 performances for the current user
+router.get(
+    '/stats/user',
+    performancesController.getUserRecentPerformances
+);
+
+
 module.exports = router;
