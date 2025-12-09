@@ -32,5 +32,11 @@ module.exports = {
     logging: {
         level: process.env.LOG_LEVEL || 'info', // 'debug', 'info', 'warn', 'error'
         enableColors: true
+    },
+
+    // JWT configuration
+    jwt: {
+        secret: process.env.JWT_SECRET || 'your_super_secret_key_that_is_long_and_random',
+        expiresIn: '1h' // Token expiration time
     }
 };

@@ -65,7 +65,7 @@ const analyzePerformance = async (audioFilePath, songId, options = {}) => {
         const scriptArgs = [
             ANALYSIS_SCRIPT_PATH,
             '--audio-path', wavFilePath,
-            '--song-id', songId
+            '--song-id', songId // Still needed for the 'default' case
         ];
 
         // Add optional MusicXML path if provided
@@ -76,12 +76,12 @@ const analyzePerformance = async (audioFilePath, songId, options = {}) => {
 
         // Add tempo if provided
         if (options.tempo) {
-            scriptArgs.push('--tempo', options.tempo.toString());
+            scriptArgs.push('--tempo', String(options.tempo));
         }
 
         // Add timing tolerance if provided
         if (options.timingTolerance) {
-            scriptArgs.push('--timing-tolerance', options.timingTolerance.toString());
+            scriptArgs.push('--timing-tolerance', String(options.timingTolerance));
         }
 
         logger.info(`Python script args: ${scriptArgs.join(' ')}`);

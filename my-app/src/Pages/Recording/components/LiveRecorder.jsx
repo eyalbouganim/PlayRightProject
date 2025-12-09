@@ -1,8 +1,20 @@
 // src/Pages/Recording/components/LiveRecorder.jsx
 
 import React from 'react';
+import {
+    Box,
+    Typography,
+    Button,
+    Paper,
+    Stack,
+    Chip,
+    Alert
+} from '@mui/material';
+import LinkIcon from '@mui/icons-material/Link';
+import MicIcon from '@mui/icons-material/Mic';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
+import ReplayIcon from '@mui/icons-material/Replay';
 import NoteDisplay from './NoteDisplay.jsx';
-import './LiveRecorder.css';
 
 // This is now a "presentational" component.
 // It receives all its logic as props from the parent.
@@ -16,63 +28,68 @@ const LiveRecorder = ({
     startRecording,
     stopRecording,
     reset,
-    disconnect,
-    // Note: We are now receiving startRecording and stopRecording as props,
-    // so we don't need the internal handleStart function anymore.
 }) => {
 
     return (
-        <div className="live-recorder">
-            <div className="recorder-header">
-                <h2>Controls</h2>
-                <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-                    {status}
-                </div>
-            </div>
+        <Paper elevation={3} sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5">Controls</Typography>
+                <Chip
+                    label={status}
+                    color={isConnected ? 'success' : 'default'}
+                    variant="outlined"
+                />
+            </Box>
 
-            {error && <div className="error-message">⚠️ {error}</div>}
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-            <div className="controls">
+            <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
                 {/* Step 1: Show Connect button if not connected */}
                 {!isConnected ? (
-                    <button
-                        className="btn btn-connect"
+                    <Button
+                        variant="contained"
                         onClick={connect}
                         disabled={status.includes('Connecting')}
+                        startIcon={<LinkIcon />}
                     >
-                        🔗 Connect to Server
-                    </button>
+                        Connect to Server
+                    </Button>
                 ) : !isRecording ? (
                     // Step 2: Once connected, show Start button
-                    <button
-                        className="btn btn-start"
+                    <Button
+                        variant="contained"
+                        color="success"
                         onClick={startRecording} // Uses the function from props
                         disabled={!status.includes('Ready')}
+                        startIcon={<MicIcon />}
                     >
-                        🎤 Start Recording
-                    </button>
+                        Start Recording
+                    </Button>
                 ) : (
                     // Step 3: Once recording, show Stop button
-                    <button
-                        className="btn btn-stop"
+                    <Button
+                        variant="contained"
+                        color="error"
                         onClick={stopRecording} // Uses the function from props
+                        startIcon={<StopCircleIcon />}
                     >
-                        🛑 Stop Recording
-                    </button>
+                        Stop Recording
+                    </Button>
                 )}
 
-                <button
-                    className="btn btn-reset"
+                <Button
+                    variant="outlined"
                     onClick={reset} // Uses the function from props
                     disabled={!isConnected}
+                    startIcon={<ReplayIcon />}
                 >
-                    🔄 Reset
-                </button>
-            </div>
+                    Reset
+                </Button>
+            </Stack>
 
             {/* This will now correctly display the notes from the parent */}
             <NoteDisplay notes={notes} />
-        </div>
+        </Paper>
     );
 };
 

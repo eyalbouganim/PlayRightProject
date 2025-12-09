@@ -630,11 +630,22 @@ def main():
     args = parser.parse_args()
     
     audio_path = args.audio_path
-    musicxml_path = args.musicxml_path
+    song_id = args.song_id
     tempo = args.tempo
     timing_tolerance = args.timing_tolerance
     
-    # Detect notes with improved algorithm
+    # Determine the MusicXML path based on song_id
+    musicxml_path = None
+    if song_id:
+        if song_id == 'default':
+            # Path to the default MusicXML file within the brain-server directory
+            musicxml_path = './assets/twinkle_twinkle.musicxml'
+            print(f"--- Using default MusicXML for comparison: {musicxml_path} ---", file=sys.stderr)
+        else:
+            # Construct path for user-uploaded songs
+            musicxml_path = f'../node-server/uploads/musicxml/{song_id}.musicxml'
+            print(f"--- Using user-uploaded MusicXML for comparison: {musicxml_path} ---", file=sys.stderr)
+
     detected_notes = detect_notes_improved(audio_path, sample_rate=22050, min_db=-38)
     
     output = {

@@ -3,15 +3,20 @@ const cors = require('cors');
 const WebSocket = require('ws');
 const health = require('./routes/health');
 const performances = require('./routes/performances');
+const auth = require('./routes/auth'); // Import auth routes
+const users = require('./routes/user'); // Import user routes
 const config = require('./config/config');
+const songRoutes = require('./routes/songRoutes');
 const audioController = require('./controllers/audioController');
+const { protect } = require('./middleware/authMiddleware'); // Import the protect middleware
 const logger = require('./utils/logger');
 
 // Import the database connection instance
 const sequelize = require('./config/database'); 
 // Import your models here so Sequelize knows about them
 const User = require('./models/userModel');
-// (Add other models like Song, Performance here as you create them)
+const Song = require('./models/songModel');
+const Performance = require('./models/performanceModel');
 
 const app = express();
 
@@ -32,7 +37,10 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/health', health);
-app.use('/api/performances', performances);
+app.use('/api/performances', protect, performances); // Protect the performances route
+app.use('/api/users', protect, users); // Protect all user-related routes
+app.use('/api/auth', auth); // Use auth routes
+app.use('/api/songs', protect, songRoutes); // Add this line to register the song routes
 
 // Define server and wss here so they are accessible by the shutdown function
 let server;

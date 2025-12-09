@@ -281,7 +281,7 @@ def align_and_compare(detected_notes, expected_notes, timing_tolerance=0.3):
     pitch_accuracy = (pitch_score / n_expected) * 100
     pitch_accuracy = max(0.0, pitch_accuracy)  # Floor at 0%
     
-    # TIMING ACCURACY CALCULATION (as specified):
+    # TIMING ACCURACY CALCULATION:
     # Only check timing of correct notes
     # timing_mistakes already counts only timing issues on correct notes + missed notes
     timing_accuracy = max(0, ((n_expected - timing_mistakes) / n_expected) * 100)
