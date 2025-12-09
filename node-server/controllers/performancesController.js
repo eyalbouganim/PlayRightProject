@@ -170,7 +170,7 @@ const getSongPerformanceStats = async (req, res) => {
 };
 
 /**
- * Gets the last 5 performances for the current user.
+ * Gets the last 5 performances for the current user
  * @route GET /api/performances/stats/user
  */
 const getUserRecentPerformances = async (req, res) => {
