@@ -9,7 +9,12 @@ import {
     Grid,
     TextField,
     Stack,
-    Chip
+    Chip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Divider
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
@@ -52,6 +57,8 @@ const Recording = () => {
     const [tempo, setTempo] = useState(120); // Default tempo
     const [timingTolerance, setTimingTolerance] = useState(0.3); // Default tolerance
     const [isSongRetrieverOpen, setIsSongRetrieverOpen] = useState(false);
+    const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
+    const [performanceResults, setPerformanceResults] = useState(null);
 
     // Parse MusicXML whenever it changes
     useEffect(() => {
@@ -199,23 +206,11 @@ const Recording = () => {
                     
                     // Display comparison results if available
                     if (data.comparison) {
-                        const { pitch_accuracy, timing_accuracy, overall_score, details } = data.comparison;
-                        
-                        // Create detailed feedback message
-                        let feedbackMessage = `🎵 Performance Analysis 🎵\n\n`;
-                        feedbackMessage += `Pitch Accuracy: ${pitch_accuracy}%\n`;
-                        feedbackMessage += `Timing Accuracy: ${timing_accuracy}%\n`;
-                        feedbackMessage += `Overall Score: ${overall_score}%\n\n`;
-                        
-                        // Add summary
-                        feedbackMessage += `Total Notes: ${data.comparison.total_expected}\n`;
-                        feedbackMessage += `Correct Notes: ${data.comparison.correct_notes}\n`;
-                        feedbackMessage += `On-Time Notes: ${data.comparison.on_time_notes}\n`;
-                        
-                        alert(feedbackMessage);
+                        setPerformanceResults(data.comparison);
+                        setResultsDialogOpen(true);
                         
                         // Log detailed results
-                        console.log('Detailed comparison:', details);
+                        console.log('Detailed comparison:', data.comparison.details);
                     } else {
                         alert('Performance recorded successfully! (No comparison data available)');
                     }
@@ -348,6 +343,71 @@ const Recording = () => {
                     {isScoring && <Typography variant="body2" sx={{ mt: 1 }}>Calculating your score...</Typography>}
                 </Paper>
             )}
+
+            {/* Performance Results Dialog */}
+            <Dialog 
+                open={resultsDialogOpen} 
+                onClose={() => setResultsDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
+                    Performance Analysis
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
+                    {performanceResults && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, py: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                                <Typography variant="h2" color="primary" sx={{ fontWeight: 'bold' }}>
+                                    {performanceResults.overall_score}%
+                                </Typography>
+                                <Typography variant="subtitle1" color="text.secondary">
+                                    Overall Score
+                                </Typography>
+                            </Box>
+                            
+                            <Divider />
+                            
+                            <Grid container spacing={2} sx={{ textAlign: 'center' }}>
+                                <Grid item xs={6}>
+                                    <Typography variant="h5" color="text.primary">{performanceResults.pitch_accuracy}%</Typography>
+                                    <Typography variant="body2" color="text.secondary">Pitch Accuracy</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="h5" color="text.primary">{performanceResults.timing_accuracy}%</Typography>
+                                    <Typography variant="body2" color="text.secondary">Timing Accuracy</Typography>
+                                </Grid>
+                            </Grid>
+
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
+                                <Stack spacing={1}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="body2">Total Notes:</Typography>
+                                        <Typography variant="body2" fontWeight="bold">{performanceResults.total_expected}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="body2">Correct Notes:</Typography>
+                                        <Typography variant="body2" fontWeight="bold" color="success.main">{performanceResults.correct_notes}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="body2">On-Time Notes:</Typography>
+                                        <Typography variant="body2" fontWeight="bold" color="info.main">{performanceResults.on_time_notes}</Typography>
+                                    </Box>
+                                </Stack>
+                            </Paper>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2, justifyContent: 'center' }}>
+                    <Button 
+                        onClick={() => setResultsDialogOpen(false)} 
+                        variant="contained" 
+                        size="large"
+                    >
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 };

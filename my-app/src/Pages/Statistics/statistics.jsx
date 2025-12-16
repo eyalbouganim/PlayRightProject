@@ -154,13 +154,15 @@ const Statistics = () => {
                                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Song</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Score</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Pitch</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Timing</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Feedback</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {performances.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                         <Typography variant="body1" color="textSecondary">
                                             No performance history found. Start playing to see your stats!
                                         </Typography>
@@ -193,6 +195,16 @@ const Statistics = () => {
                                                 variant="filled"
                                                 sx={{ fontWeight: 'bold', minWidth: '60px' }}
                                             />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">
+                                                {perf.pitchAccuracy !== undefined && perf.pitchAccuracy !== null ? `${Math.round(perf.pitchAccuracy)}%` : '-'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">
+                                                {perf.timingAccuracy !== undefined && perf.timingAccuracy !== null ? `${Math.round(perf.timingAccuracy)}%` : '-'}
+                                            </Typography>
                                         </TableCell>
                                         <TableCell sx={{ maxWidth: 300 }}>
                                             <Typography variant="body2" noWrap title={perf.feedback}>
