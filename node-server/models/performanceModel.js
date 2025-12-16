@@ -66,7 +66,7 @@ Performance.belongsTo(User, { foreignKey: 'user_id' });
 User.hasMany(Performance, { foreignKey: 'user_id' });
 
 // A Performance is for one Song
-Performance.belongsTo(Song, { foreignKey: 'song_id' });
+Performance.belongsTo(Song, { foreignKey: 'song_id', as: 'song' });
 Song.hasMany(Performance, { foreignKey: 'song_id' });
 
 

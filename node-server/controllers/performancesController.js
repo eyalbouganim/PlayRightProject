@@ -179,11 +179,20 @@ const getUserRecentPerformances = async (req, res) => {
 
         const recentPerformances = await Performance.findAll({
             where: { user_id: userId },
-            limit: 5,
             order: [['createdAt', 'DESC']],
-            attributes: ['id', 'overall_score', 'pitch_accuracy', 'timing_accuracy', 'createdAt'],
+            attributes: [
+                'id',
+                ['overall_score', 'overallScore'],
+                ['pitch_accuracy', 'pitchAccuracy'],
+                ['timing_accuracy', 'timingAccuracy'],
+                ['detected_notes', 'detectedNotes'],
+                ['analysis_details', 'analysisDetails'],
+                ['audio_file_path', 'audioFilePath'],
+                'createdAt'
+            ],
             include: [{
                 model: Song,
+                as: 'song',
                 attributes: ['id', 'title'] // Include song title
             }]
         });

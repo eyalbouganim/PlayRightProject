@@ -13,6 +13,7 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import Profile from "./Pages/Profile/profile.jsx";
 import ProtectedLayout from "./auth/ProtectedLayout.jsx";
 import Register from "./Pages/Register/register.jsx";
+import Statistics from "./Pages/Statistics/statistics.jsx";
 
 // Create a custom theme instance to define the application's color scheme.
 const theme = createTheme({
@@ -73,6 +74,7 @@ function App() {
               <Route path="/home" element={<Home />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/recording" element={<Recording />} />
+              <Route path="/statistics" element={<Statistics />} />
               <Route path="/" element={<Navigate to="/home" replace />} />
             </Route>
           </Route>

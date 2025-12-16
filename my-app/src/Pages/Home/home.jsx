@@ -2,12 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 const Home = () => {
     const navigate = useNavigate();
 
     const handlePracticeClick = () => {
         navigate('/recording');
+    };
+
+    const handleStatisticsClick = () => {
+        navigate('/statistics');
     };
 
     return (
@@ -39,22 +44,40 @@ const Home = () => {
                 </Typography>
             </Box>
 
-            <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={handlePracticeClick}
-                startIcon={<MusicNoteIcon />}
-                sx={{
-                    mt: 4, // Add some margin to separate from the title
-                    padding: '15px 40px',
-                    fontSize: '1.2rem',
-                    borderRadius: '50px', // Pill shape button
-                    boxShadow: (theme) => `0 4px 20px ${theme.palette.primary.main}60`, // Glow effect
-                }}
-            >
-                Go to Practice
-            </Button>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 4 }}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    onClick={handlePracticeClick}
+                    startIcon={<MusicNoteIcon />}
+                    sx={{
+                        padding: '15px 40px',
+                        fontSize: '1.2rem',
+                        borderRadius: '50px', // Pill shape button
+                        boxShadow: (theme) => `0 4px 20px ${theme.palette.primary.main}60`, // Glow effect
+                    }}
+                >
+                    Go to Practice
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    color="primary"
+                    size="large"
+                    onClick={handleStatisticsClick}
+                    startIcon={<BarChartIcon />}
+                    sx={{
+                        padding: '15px 40px',
+                        fontSize: '1.2rem',
+                        borderRadius: '50px', // Pill shape button
+                        borderWidth: '2px',
+                        '&:hover': { borderWidth: '2px' }
+                    }}
+                >
+                    View Statistics
+                </Button>
+            </Box>
         </Box>
     );
 };
