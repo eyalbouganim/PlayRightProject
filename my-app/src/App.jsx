@@ -1,3 +1,4 @@
+import React from 'react';
 import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
@@ -39,9 +40,22 @@ const theme = createTheme({
     // Apply the beautiful gradient background to the whole app
     MuiCssBaseline: {
       styleOverrides: `
+        @keyframes gradientBG {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes float {
+          0% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+          100% { transform: translateY(0px) rotate(0deg); }
+        }
         body {
-          background: linear-gradient(to bottom, #e3f2fd, #f0f8ff);
-          background-attachment: fixed;
+          background: linear-gradient(-45deg, #f0f8ff, #e3f2fd, #bbdefb, #f0f8ff);
+          background-size: 400% 400%;
+          animation: gradientBG 25s ease infinite;
+          min-height: 100vh;
+          overflow-x: hidden;
         }
       `,
     },
@@ -56,11 +70,58 @@ const theme = createTheme({
   },
 });
 
+const FloatingNotes = () => {
+  const notes = React.useMemo(() => {
+    const symbols = ['♪', '♫', '♩', '♬', '♭', '♮', '♯'];
+    return Array.from({ length: 20 }).map((_, i) => {
+      // Randomly choose left (0-15%) or right (85-100%) margin
+      const isLeft = Math.random() < 0.5;
+      const left = isLeft 
+        ? `${Math.random() * 15}%` 
+        : `${85 + Math.random() * 15}%`;
+
+      return {
+        id: i,
+        symbol: symbols[Math.floor(Math.random() * symbols.length)],
+        left: left,
+        top: `${Math.random() * 100}%`, // Spread vertically across the screen
+        animationDuration: `${3 + Math.random() * 5}s`, // Gentle bobbing speed
+        animationDelay: `${Math.random() * -5}s`,
+        fontSize: `${24 + Math.random() * 16}px`,
+        opacity: 0.1 + Math.random() * 0.3, // Subtle opacity
+      };
+    });
+  }, []);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+      {notes.map((note) => (
+        <div
+          key={note.id}
+          style={{
+            position: 'absolute',
+            left: note.left,
+            top: note.top,
+            color: '#1976d2',
+            fontSize: note.fontSize,
+            opacity: note.opacity,
+            animation: `float ${note.animationDuration} ease-in-out infinite`,
+            animationDelay: note.animationDelay,
+          }}
+        >
+          {note.symbol}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       {/* CssBaseline kickstarts an elegant, consistent, and simple baseline to build upon. */}
       <CssBaseline />
+      <FloatingNotes />
       <BrowserRouter>
         <Routes>
           {/* Public routes that anyone can access */}

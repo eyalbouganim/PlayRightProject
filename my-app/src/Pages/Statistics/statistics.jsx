@@ -81,69 +81,136 @@ const Statistics = () => {
         : null;
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', mb: 4 }}>
-                Performance Statistics
-            </Typography>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+            <Box sx={{ textAlign: 'center', mb: 6 }}>
+                <Typography
+                    variant="h3"
+                    component="h1"
+                    sx={{
+                        fontWeight: 800,
+                        color: 'primary.main',
+                        mb: 2,
+                        textShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                    }}
+                >
+                    Performance Statistics
+                </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: '600px', mx: 'auto' }}>
+                    Track your progress and analyze your musical journey.
+                </Typography>
+            </Box>
             
             {/* Stats Overview Cards */}
-            <Grid container spacing={3} sx={{ mb: 5 }}>
+            <Grid container spacing={4} sx={{ mb: 6 }}>
                 <Grid item xs={12} md={4}>
-                    <Paper elevation={3} sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '6px solid #1976d2' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <Typography color="textSecondary" variant="overline" sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                Recent Sessions
-                            </Typography>
-                            <Timeline color="primary" fontSize="large" />
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            borderRadius: 4,
+                            bgcolor: 'rgba(255, 255, 255, 0.8)',
+                            backdropFilter: 'blur(20px)',
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.18)',
+                            transition: 'transform 0.3s ease-in-out',
+                            '&:hover': { transform: 'translateY(-5px)' }
+                        }}
+                    >
+                        <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'primary.light', color: 'white', mb: 2, boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)' }}>
+                            <Timeline fontSize="large" />
                         </Box>
-                        <Typography variant="h3" component="div" sx={{ fontWeight: 'bold', mt: 1 }}>
+                        <Typography variant="h3" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
                             {totalSessions}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
-                            Total performances recorded
+                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Total Sessions
                         </Typography>
                     </Paper>
                 </Grid>
                 
                 <Grid item xs={12} md={4}>
-                    <Paper elevation={3} sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '6px solid #2e7d32' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <Typography color="textSecondary" variant="overline" sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                Average Score
-                            </Typography>
-                            <Speed color="success" fontSize="large" />
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            borderRadius: 4,
+                            bgcolor: 'rgba(255, 255, 255, 0.8)',
+                            backdropFilter: 'blur(20px)',
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.18)',
+                            transition: 'transform 0.3s ease-in-out',
+                            '&:hover': { transform: 'translateY(-5px)' }
+                        }}
+                    >
+                        <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'success.light', color: 'white', mb: 2, boxShadow: '0 4px 12px rgba(46, 125, 50, 0.3)' }}>
+                            <Speed fontSize="large" />
                         </Box>
-                        <Typography variant="h3" component="div" sx={{ fontWeight: 'bold', mt: 1 }}>
+                        <Typography variant="h3" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
                             {averageScore}%
                         </Typography>
-                        <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
-                            Based on recent activity
+                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Average Score
                         </Typography>
                     </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                    <Paper elevation={3} sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '6px solid #9c27b0' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <Typography color="textSecondary" variant="overline" sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                Best Recent
-                            </Typography>
-                            <EmojiEvents sx={{ color: '#9c27b0' }} fontSize="large" />
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            borderRadius: 4,
+                            bgcolor: 'rgba(255, 255, 255, 0.8)',
+                            backdropFilter: 'blur(20px)',
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.18)',
+                            transition: 'transform 0.3s ease-in-out',
+                            '&:hover': { transform: 'translateY(-5px)' }
+                        }}
+                    >
+                        <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'secondary.main', color: 'white', mb: 2, boxShadow: '0 4px 12px rgba(156, 39, 176, 0.3)' }}>
+                            <EmojiEvents fontSize="large" />
                         </Box>
-                        <Typography variant="h3" component="div" sx={{ fontWeight: 'bold', mt: 1 }}>
+                        <Typography variant="h3" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
                             {bestPerformance ? `${bestPerformance.overallScore || 0}%` : '-'}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }} noWrap>
-                            {bestPerformance ? (bestPerformance.songTitle || (bestPerformance.song && bestPerformance.song.title) || 'Unknown Song') : 'No data'}
+                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 600 }} noWrap>
+                            {bestPerformance ? (bestPerformance.songTitle || (bestPerformance.song && bestPerformance.song.title) || 'Unknown Song') : 'No Data'}
                         </Typography>
                     </Paper>
                 </Grid>
             </Grid>
 
             {/* Recent Performances Table */}
-            <Paper elevation={3} sx={{ width: '100%', overflow: 'hidden' }}>
-                <Box sx={{ px: 3, py: 2, bgcolor: 'rgba(0, 0, 0, 0.03)', borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+            <Paper
+                elevation={0}
+                sx={{
+                    width: '100%',
+                    overflow: 'hidden',
+                    borderRadius: 4,
+                    bgcolor: 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                }}
+            >
+                <Box sx={{ px: 4, py: 3, borderBottom: '1px solid rgba(0, 0, 0, 0.08)' }}>
+                    <Typography variant="h5" component="div" sx={{ fontWeight: 700, color: 'primary.main' }}>
                         Recent History
                     </Typography>
                 </Box>
@@ -151,12 +218,12 @@ const Statistics = () => {
                     <Table stickyHeader aria-label="performances table">
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Song</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Score</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Pitch</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Timing</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Feedback</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Date</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Song</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Score</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Pitch</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Timing</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.9)' }}>Feedback</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

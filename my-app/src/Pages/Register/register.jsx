@@ -11,14 +11,23 @@ import {
     Link,
     Alert,
     CircularProgress,
-    Grid
+    InputAdornment,
+    IconButton,
+    Paper
 } from '@mui/material';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import EmailIcon from '@mui/icons-material/Email';
+import LockIcon from '@mui/icons-material/Lock';
+import PersonIcon from '@mui/icons-material/Person';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 const Register = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +75,8 @@ const Register = () => {
         }
     };
 
+    const handleClickShowPassword = () => setShowPassword((show) => !show);
+
     return (
         <Container
             component="main"
@@ -77,51 +88,141 @@ const Register = () => {
                 minHeight: '100vh',
             }}
         >
-            <Box
+            <Paper
+                elevation={0}
                 sx={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     p: 4,
-                    borderRadius: 2,
-                    bgcolor: 'secondary.main',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                    borderRadius: 4,
+                    width: '100%',
+                    bgcolor: 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
                     border: '1px solid rgba(255, 255, 255, 0.18)',
                 }}
             >
-                <Typography component="h1" variant="h4" sx={{ color: 'white', mb: 2 }}>
-                    Sign Up
+                {/* Branding Logo */}
+                <Box
+                    sx={{
+                        p: 1.5,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        mb: 2,
+                        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                    }}
+                >
+                    <MusicNoteIcon fontSize="large" />
+                </Box>
+
+                <Typography component="h1" variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
+                    Create Account
                 </Typography>
-                <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3 }}>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    Join PlayRight to start your musical journey
+                </Typography>
+
+                <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                     {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
                     {success && <Alert severity="success" sx={{ width: '100%', mb: 2 }}>{success}</Alert>}
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                            <TextField autoComplete="given-name" name="firstName" required fullWidth id="firstName" label="First Name" autoFocus value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField required fullWidth id="lastName" label="Last Name" name="lastName" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField required fullWidth id="email" label="Email Address" name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField required fullWidth name="password" label="Password" type="password" id="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                        </Grid>
-                    </Grid>
-                    <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={isLoading || !!success}>
+                    <TextField
+                        margin="normal"
+                        autoComplete="given-name"
+                        name="firstName"
+                        required
+                        fullWidth
+                        id="firstName"
+                        label="First Name"
+                        autoFocus
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        InputProps={{
+                            startAdornment: (<InputAdornment position="start"><PersonIcon color="action" /></InputAdornment>),
+                        }}
+                    />
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        id="lastName"
+                        label="Last Name"
+                        name="lastName"
+                        autoComplete="family-name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        InputProps={{
+                            startAdornment: (<InputAdornment position="start"><PersonIcon color="action" /></InputAdornment>),
+                        }}
+                    />
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        id="email"
+                        label="Email Address"
+                        name="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        InputProps={{
+                            startAdornment: (<InputAdornment position="start"><EmailIcon color="action" /></InputAdornment>),
+                        }}
+                    />
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        name="password"
+                        label="Password"
+                        type={showPassword ? 'text' : 'password'}
+                        id="password"
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        InputProps={{
+                            startAdornment: (<InputAdornment position="start"><LockIcon color="action" /></InputAdornment>),
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton aria-label="toggle password visibility" onClick={handleClickShowPassword} edge="end">
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }}
+                    />
+                    <Button
+                        type="submit"
+                        fullWidth
+                        variant="contained"
+                        size="large"
+                        sx={{
+                            mt: 4,
+                            mb: 3,
+                            py: 1.5,
+                            borderRadius: '50px',
+                            fontWeight: 600,
+                            textTransform: 'none',
+                            fontSize: '1rem',
+                            boxShadow: '0 4px 14px 0 rgba(25, 118, 210, 0.39)'
+                        }}
+                        disabled={isLoading || !!success}
+                    >
                         {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
                     </Button>
-                    <Grid container justifyContent="flex-end">
-                        <Grid item>
-                            <Link component={RouterLink} to="/login" variant="body2">
-                                Already have an account? Login
-                            </Link>
-                        </Grid>
-                    </Grid>
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Link
+                            component={RouterLink}
+                            to="/login"
+                            variant="body2"
+                            sx={{ fontWeight: 600, textDecoration: 'none' }}
+                        >
+                            Already have an account? Login
+                        </Link>
+                    </Box>
                 </Box>
-            </Box>
+            </Paper>
         </Container>
     );
 };
