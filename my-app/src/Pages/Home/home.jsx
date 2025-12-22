@@ -36,10 +36,12 @@ const Home = () => {
                         component="h1"
                         sx={{
                             fontWeight: 800,
-                            color: 'primary.main',
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
                             letterSpacing: '-0.02em',
                             mb: 2,
-                            textShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                            filter: 'drop-shadow(0 4px 6px rgba(25, 118, 210, 0.4))',
                         }}
                     >
                         PlayRight
@@ -81,14 +83,18 @@ const Home = () => {
                             flexDirection: 'column',
                             alignItems: 'center',
                             textAlign: 'center',
-                            border: `1px solid ${theme.palette.divider}`,
+                            bgcolor: 'rgba(255, 255, 255, 0.7)',
+                            backdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(255, 255, 255, 0.5)',
                             borderRadius: 4,
-                            transition: 'all 0.3s ease',
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
+                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-5px)',
-                                boxShadow: theme.shadows[10],
+                                transform: 'translateY(-8px) scale(1.02)',
+                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
                                 borderColor: 'primary.main',
+                                bgcolor: 'rgba(255, 255, 255, 0.9)',
                             },
                         }}
                         onClick={handlePracticeClick}
@@ -138,14 +144,18 @@ const Home = () => {
                             flexDirection: 'column',
                             alignItems: 'center',
                             textAlign: 'center',
-                            border: `1px solid ${theme.palette.divider}`,
+                            bgcolor: 'rgba(255, 255, 255, 0.7)',
+                            backdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(255, 255, 255, 0.5)',
                             borderRadius: 4,
-                            transition: 'all 0.3s ease',
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
+                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-5px)',
-                                boxShadow: theme.shadows[10],
+                                transform: 'translateY(-8px) scale(1.02)',
+                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
                                 borderColor: 'primary.main',
+                                bgcolor: 'rgba(255, 255, 255, 0.9)',
                             },
                         }}
                         onClick={handleStatisticsClick}
