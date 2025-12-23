@@ -13,7 +13,12 @@ import {
     TableRow,
     CircularProgress,
     Alert,
-    Chip
+    Chip,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Stack
 } from '@mui/material';
 import { Timeline, Speed, EmojiEvents, MusicNote } from '@mui/icons-material';
 
@@ -21,6 +26,8 @@ const Statistics = () => {
     const [performances, setPerformances] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [songFilter, setSongFilter] = useState('All');
+    const [scoreFilter, setScoreFilter] = useState('All');
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -79,6 +86,24 @@ const Statistics = () => {
     const bestPerformance = totalSessions > 0
         ? performances.reduce((prev, current) => ((prev.overallScore || 0) > (current.overallScore || 0)) ? prev : current)
         : null;
+
+    // Filter Logic
+    const uniqueSongs = [...new Set(performances.map(p => p.songTitle || (p.song && p.song.title) || 'Unknown Song'))];
+
+    const filteredPerformances = performances.filter(perf => {
+        const songTitle = perf.songTitle || (perf.song && perf.song.title) || 'Unknown Song';
+        const score = perf.overallScore || 0;
+
+        const matchesSong = songFilter === 'All' || songTitle === songFilter;
+        
+        let matchesScore = true;
+        if (scoreFilter === 'Excellent') matchesScore = score >= 90;
+        else if (scoreFilter === 'Good') matchesScore = score >= 80 && score < 90;
+        else if (scoreFilter === 'Fair') matchesScore = score >= 60 && score < 80;
+        else if (scoreFilter === 'Needs Improvement') matchesScore = score < 60;
+
+        return matchesSong && matchesScore;
+    });
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
@@ -209,10 +234,41 @@ const Statistics = () => {
                     border: '1px solid rgba(255, 255, 255, 0.18)',
                 }}
             >
-                <Box sx={{ px: 4, py: 3, borderBottom: '1px solid rgba(0, 0, 0, 0.08)' }}>
+                <Box sx={{ px: 4, py: 3, borderBottom: '1px solid rgba(0, 0, 0, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                     <Typography variant="h5" component="div" sx={{ fontWeight: 700, color: 'primary.main' }}>
                         Recent History
                     </Typography>
+                    <Stack direction="row" spacing={2}>
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel id="song-filter-label">Song</InputLabel>
+                            <Select
+                                labelId="song-filter-label"
+                                value={songFilter}
+                                label="Song"
+                                onChange={(e) => setSongFilter(e.target.value)}
+                            >
+                                <MenuItem value="All">All Songs</MenuItem>
+                                {uniqueSongs.map((song) => (
+                                    <MenuItem key={song} value={song}>{song}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                            <InputLabel id="score-filter-label">Score</InputLabel>
+                            <Select
+                                labelId="score-filter-label"
+                                value={scoreFilter}
+                                label="Score"
+                                onChange={(e) => setScoreFilter(e.target.value)}
+                            >
+                                <MenuItem value="All">All Scores</MenuItem>
+                                <MenuItem value="Excellent">Excellent (90-100)</MenuItem>
+                                <MenuItem value="Good">Good (80-89)</MenuItem>
+                                <MenuItem value="Fair">Fair (60-79)</MenuItem>
+                                <MenuItem value="Needs Improvement">Needs Improvement (&lt;60)</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
                 </Box>
                 <TableContainer sx={{ maxHeight: 500 }}>
                     <Table stickyHeader aria-label="performances table">
@@ -227,16 +283,18 @@ const Statistics = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {performances.length === 0 ? (
+                            {filteredPerformances.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                         <Typography variant="body1" color="textSecondary">
-                                            No performance history found. Start playing to see your stats!
+                                            {performances.length === 0 
+                                                ? "No performance history found. Start playing to see your stats!" 
+                                                : "No performances match the selected filters."}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                performances.map((perf, index) => (
+                                filteredPerformances.map((perf, index) => (
                                     <TableRow hover role="checkbox" tabIndex={-1} key={perf.id || index}>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ fontWeight: 500 }}>

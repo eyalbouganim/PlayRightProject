@@ -29,7 +29,12 @@ User.init({
     },
     password_hash: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true // Password is optional for Google Auth users
+    },
+    google_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true
     }
 }, {
     sequelize,                 // Pass the connection instance

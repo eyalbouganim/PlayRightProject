@@ -10,4 +10,8 @@ router.post('/register', authController.register);
 // @desc    Authenticate user & get token
 router.post('/login', authController.login);
 
+// @route   POST api/auth/google
+// @desc    Authenticate user via Google OAuth
+router.post('/google', authController.googleLogin);
+
 module.exports = router;

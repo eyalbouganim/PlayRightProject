@@ -1,8 +1,14 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/userModel');
 const config = require('../config/config');
 const logger = require('../utils/logger');
+
+// Initialize Google Client
+// Using the Client ID found in your frontend configuration
+const GOOGLE_CLIENT_ID = "1013568186744-3bdq5sbmqh4l666c2bpd5mirp5p8evjd.apps.googleusercontent.com";
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 /**
  * @description Register a new user
@@ -87,4 +93,73 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { register, login };
+/**
+ * @description Authenticate a user via Google OAuth
+ * @route POST /api/auth/google
+ */
+const googleLogin = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ message: 'Google token is required.' });
+        }
+
+        // Verify the token from Google
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const { email, given_name, family_name, sub } = payload; // 'sub' is the unique Google ID
+
+        // Check if user exists
+        let user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            // Create a new user if they don't exist
+            // Generate a random password since they are using Google Auth
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const saltRounds = 10;
+            const password_hash = await bcrypt.hash(randomPassword, saltRounds);
+
+            user = await User.create({
+                first_name: given_name || 'Google',
+                last_name: family_name || 'User',
+                email,
+                password_hash,
+                google_id: sub
+            });
+
+            logger.info(`New user registered via Google: ${user.email}`);
+        } else if (!user.google_id) {
+            // Merge scenario: User exists (registered via email/pass) but hasn't linked Google yet.
+            // We update the record to include the google_id so they can use both methods.
+            user.google_id = sub;
+            await user.save();
+            logger.info(`Existing user linked with Google account: ${user.email}`);
+        }
+
+        // Create JWT payload (same as standard login)
+        const jwtPayload = { id: user.id, email: user.email };
+
+        // Sign the token
+        const appToken = jwt.sign(jwtPayload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+
+        res.json({
+            message: 'Google login successful',
+            token: appToken,
+            user: {
+                firstName: user.first_name,
+                lastName: user.last_name,
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error during Google login:', error);
+        res.status(401).json({ message: 'Google authentication failed.' });
+    }
+};
+
+module.exports = { register, login, googleLogin };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 // MUI Imports
 import {
@@ -13,7 +14,8 @@ import {
     CircularProgress,
     InputAdornment,
     IconButton,
-    Paper
+    Paper,
+    Divider
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import EmailIcon from '@mui/icons-material/Email';
@@ -72,6 +74,35 @@ const Login = () => {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            const response = await fetch('http://localhost:3001/api/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: credentialResponse.credential }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Google login failed.');
+            }
+
+            // Store token and redirect
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            navigate('/home');
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleGoogleError = () => {
+        setError('Google Login Failed');
+    };
+
     const handleClickShowPassword = () => setShowPassword((show) => !show);
 
     return (
@@ -103,6 +134,7 @@ const Login = () => {
                 {/* Branding Logo */}
                 <Box
                     sx={{
+                        display: 'flex',
                         p: 1.5,
                         borderRadius: '50%',
                         bgcolor: 'primary.main',
@@ -191,6 +223,16 @@ const Login = () => {
                     >
                         {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
                     </Button>
+
+                    <Divider sx={{ my: 2, width: '100%' }}>OR</Divider>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3, width: '100%' }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                        />
+                    </Box>
+
                     <Box sx={{ textAlign: 'center' }}>
                         <Typography variant="body2" color="text.secondary">
                         {"Don't have an account? "}
