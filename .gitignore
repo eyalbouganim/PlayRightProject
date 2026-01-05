@@ -56,3 +56,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Google Credentials
+google-credentials.json
+key.json
+
+test-ai.js

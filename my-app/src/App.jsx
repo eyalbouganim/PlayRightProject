@@ -15,6 +15,10 @@ import Profile from "./Pages/Profile/profile.jsx";
 import ProtectedLayout from "./auth/ProtectedLayout.jsx";
 import Register from "./Pages/Register/register.jsx";
 import Statistics from "./Pages/Statistics/statistics.jsx";
+import About from "./Pages/About/about.jsx";
+import Settings from "./Pages/Settings/settings.jsx";
+import Help from "./Pages/Help/help.jsx";
+import MusicLibrary from "./Pages/MusicLibrary/musiclibrary.jsx";
 
 // Create a custom theme instance to define the application's color scheme.
 const theme = createTheme({
@@ -123,19 +127,25 @@ function App() {
       <CssBaseline />
       <FloatingNotes />
       <BrowserRouter>
-        <Routes>
-          {/* Public routes that anyone can access */}
+<Routes>
+          {/* Public routes */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
 
-          {/* This route protects its children. If not logged in, it redirects to /login */}
+          {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
-            {/* This route provides the layout (AppBar) for its children */}
             <Route element={<ProtectedLayout />}>
               <Route path="/home" element={<Home />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/recording" element={<Recording />} />
               <Route path="/statistics" element={<Statistics />} />
+              
+              {/* NEW ROUTES */}
+              <Route path="/about" element={<About />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/library" element={<MusicLibrary />} />
+              
               <Route path="/" element={<Navigate to="/home" replace />} />
             </Route>
           </Route>

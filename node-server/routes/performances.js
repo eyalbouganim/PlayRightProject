@@ -97,5 +97,10 @@ router.get(
     performancesController.getUserRecentPerformances
 );
 
+// Route to get AI-generated feedback for a specific performance
+router.get(
+    '/:id/feedback',
+    performancesController.getPerformanceFeedback);
+
 
 module.exports = router;
