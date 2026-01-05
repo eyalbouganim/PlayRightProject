@@ -176,9 +176,9 @@ const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
     }, [currentTargetNoteIndex, osmdRendered]);
 
     return (
-        <Box sx={{ minHeight: 200, position: 'relative' }}>
+        <Box sx={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             {isLoading && (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', position: 'absolute', width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexGrow: 1, width: '100%' }}>
                     <CircularProgress />
                     <Typography sx={{ ml: 2 }}>Loading Sheet Music...</Typography>
                 </Box>
@@ -189,8 +189,12 @@ const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
             <Box
                 ref={osmdContainerRef}
                 sx={{
+                    flexGrow: 1,
                     visibility: isLoading || error ? 'hidden' : 'visible',
                     bgcolor: 'white', // Set the background of the sheet music to white
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    width: '100%'
                 }}
             />
         </Box>

@@ -6,11 +6,19 @@ import {
     Typography,
     Button,
     Paper,
-    Grid,
     TextField,
-    Stack,
-    Chip
+    Chip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Divider,
+    CircularProgress
 } from '@mui/material';
+import LinkIcon from '@mui/icons-material/Link';
+import MicIcon from '@mui/icons-material/Mic';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
+import ReplayIcon from '@mui/icons-material/Replay';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import { useAudioStream } from '../../hooks/useAudioStream';
@@ -20,6 +28,7 @@ import SheetMusicDisplay from './components/SheetMusicDisplay';
 import { defaultMusicXML } from '../../assets/defaultMusicXML';
 import SongRetriever from './components/SongRetriever';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
+import RecordingScore from './components/RecordingScore';
 
 const Recording = () => {
     const navigate = useNavigate();
@@ -52,6 +61,8 @@ const Recording = () => {
     const [tempo, setTempo] = useState(120); // Default tempo
     const [timingTolerance, setTimingTolerance] = useState(0.3); // Default tolerance
     const [isSongRetrieverOpen, setIsSongRetrieverOpen] = useState(false);
+    const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
+    const [performanceResults, setPerformanceResults] = useState(null);
 
     // Parse MusicXML whenever it changes
     useEffect(() => {
@@ -199,23 +210,11 @@ const Recording = () => {
                     
                     // Display comparison results if available
                     if (data.comparison) {
-                        const { pitch_accuracy, timing_accuracy, overall_score, details } = data.comparison;
-                        
-                        // Create detailed feedback message
-                        let feedbackMessage = `🎵 Performance Analysis 🎵\n\n`;
-                        feedbackMessage += `Pitch Accuracy: ${pitch_accuracy}%\n`;
-                        feedbackMessage += `Timing Accuracy: ${timing_accuracy}%\n`;
-                        feedbackMessage += `Overall Score: ${overall_score}%\n\n`;
-                        
-                        // Add summary
-                        feedbackMessage += `Total Notes: ${data.comparison.total_expected}\n`;
-                        feedbackMessage += `Correct Notes: ${data.comparison.correct_notes}\n`;
-                        feedbackMessage += `On-Time Notes: ${data.comparison.on_time_notes}\n`;
-                        
-                        alert(feedbackMessage);
+                        setPerformanceResults(data.comparison);
+                        setResultsDialogOpen(true);
                         
                         // Log detailed results
-                        console.log('Detailed comparison:', details);
+                        console.log('Detailed comparison:', data.comparison.details);
                     } else {
                         alert('Performance recorded successfully! (No comparison data available)');
                     }
@@ -275,15 +274,54 @@ const Recording = () => {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ my: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Container maxWidth="xl" sx={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', py: 2 }}>
+            {/* Top Bar: Compact Header & File Controls */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 3,
+                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(20px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.5)',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    flexShrink: 0
+                }}
+            >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'center', md: 'flex-start' } }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.01em' }}>
+                        Studio Session
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'center', md: 'flex-start' } }}>
+                        <Chip 
+                            label={streamHook.status} 
+                            color={streamHook.isConnected ? (streamHook.isRecording ? 'error' : 'success') : 'default'} 
+                            size="small" 
+                            variant="filled"
+                        />
+                        {uploadedFileName ? (
+                            <Chip label={uploadedFileName} size="small" color="primary" variant="outlined" />
+                        ) : (
+                            <Typography variant="caption" color="text.secondary">Default: "Twinkle Twinkle Little Star"</Typography>
+                        )}
+                    </Box>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
                 <Button
                     variant="outlined"
                     component="label"
                     startIcon={<UploadFileIcon />}
                     size="small"
+                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
                 >
-                    Upload MusicXML
+                    Upload XML
                     <input
                         type="file"
                         hidden
@@ -294,18 +332,62 @@ const Recording = () => {
                 <Button
                     variant="outlined"
                     startIcon={<LibraryMusicIcon />}
-                    size="small"
                     onClick={() => setIsSongRetrieverOpen(true)}
+                    size="small"
+                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
                 >
-                    Load My Songs
+                    My Songs
                 </Button>
-                <Typography variant="body2" color="text.secondary">
-                    Or use the default "Twinkle Twinkle Little Star".
-                </Typography>
-                {uploadedFileName && (
-                    <Chip label={`Uploaded: ${uploadedFileName}`} color="success" size="small" />
+
+                <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', md: 'block' } }} />
+
+                {/* Recording Controls */}
+                {!streamHook.isConnected ? (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={streamHook.connect}
+                        disabled={streamHook.status.includes('Connecting')}
+                        startIcon={<LinkIcon />}
+                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Connect
+                    </Button>
+                ) : !streamHook.isRecording ? (
+                    <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleStart}
+                        disabled={!streamHook.status.includes('Ready')}
+                        startIcon={<MicIcon />}
+                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Record
+                    </Button>
+                ) : (
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleStop}
+                        startIcon={<StopCircleIcon />}
+                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Stop
+                    </Button>
                 )}
-            </Box>
+
+                <Button
+                    variant="outlined"
+                    color="inherit"
+                    onClick={handleReset}
+                    disabled={!streamHook.isConnected}
+                    startIcon={<ReplayIcon />}
+                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
+                >
+                    Reset
+                </Button>
+                </Box>
+            </Paper>
 
             <SongRetriever
                 open={isSongRetrieverOpen}
@@ -314,40 +396,113 @@ const Recording = () => {
                 token={token}
             />
 
-            <Paper elevation={3} sx={{ p: 2, mb: 3, overflowX: 'auto' }}>
-                <SheetMusicDisplay
-                    musicXML={musicXML}
-                    currentTargetNoteIndex={currentTargetNoteIndex}
-                    noteStatuses={noteStatuses}
+            {/* Note Display & Errors (if any) */}
+            <Box sx={{ mb: 1, display: 'flex', justifyContent: 'center', width: '100%', flexShrink: 0, zIndex: 10 }}>
+                <LiveRecorder
+                    notes={detectedNotes}
+                    error={streamHook.error || recorderHook.recorderError}
                 />
+            </Box>
+
+            {/* Main Sheet Music Area - Takes remaining space */}
+            <Paper 
+                elevation={0} 
+                sx={{ 
+                    flexGrow: 1,
+                    overflow: 'hidden',
+                    borderRadius: 3,
+                    bgcolor: 'white',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    mb: 2
+                }}
+            >
+                <Box sx={{ width: '100%', height: '100%', p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Box sx={{ width: '100%', height: '100%' }}>
+                    <SheetMusicDisplay
+                        musicXML={musicXML}
+                        currentTargetNoteIndex={currentTargetNoteIndex}
+                        noteStatuses={noteStatuses}
+                    />
+                    </Box>
+                </Box>
             </Paper>
 
-            <LiveRecorder
-                isConnected={streamHook.isConnected}
-                isRecording={streamHook.isRecording}
-                status={streamHook.status}
-                notes={detectedNotes}
-                error={streamHook.error || recorderHook.recorderError}
-                connect={streamHook.connect}
-                startRecording={handleStart}
-                stopRecording={handleStop}
-                reset={handleReset}
-                disconnect={streamHook.disconnect}
-            />
-
+            {/* Feedback & Playback Section - Appears at bottom */}
             {currentTargetNoteIndex >= songToPlay.length && !isRecording && songToPlay.length > 0 && (
-                <Typography variant="h4" color="primary" align="center" sx={{ mt: 4 }}>
-                    🎉 Well Done! 🎉
-                </Typography>
+                <Box sx={{ textAlign: 'center', mb: 2, p: 2, bgcolor: 'success.light', borderRadius: 3, color: 'white', boxShadow: 2, flexShrink: 0 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                        🎉 Session Complete! 🎉
+                    </Typography>
+                    <Typography variant="subtitle1">
+                        Great job! Check your playback below.
+                    </Typography>
+                </Box>
             )}
 
             {playbackUrl && (
-                <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
-                    <Typography variant="h6">Listen to your performance:</Typography>
-                    <audio src={playbackUrl} controls />
-                    {isScoring && <Typography variant="body2" sx={{ mt: 1 }}>Calculating your score...</Typography>}
+                <Paper 
+                    elevation={0} 
+                    sx={{ 
+                        p: 2, 
+                        borderRadius: 3,
+                        bgcolor: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                        textAlign: 'center',
+                        flexShrink: 0
+                    }}
+                >
+                    <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        Session Playback
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                        <audio src={playbackUrl} controls style={{ width: '100%', maxWidth: '500px' }} />
+                    </Box>
+                    {isScoring && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mt: 2 }}>
+                            <CircularProgress size={20} />
+                            <Typography variant="body2" color="text.secondary">Analyzing performance...</Typography>
+                        </Box>
+                    )}
                 </Paper>
             )}
+
+            {/* Performance Results Dialog */}
+            <Dialog 
+                open={resultsDialogOpen} 
+                onClose={() => setResultsDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: 4,
+                        bgcolor: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ textAlign: 'center', bgcolor: 'primary.main', color: 'white', py: 3 }}>
+                    <Typography variant="h5" fontWeight="bold">Performance Analysis</Typography>
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
+                    <RecordingScore performanceResults={performanceResults} />
+                </DialogContent>
+                <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
+                    <Button 
+                        onClick={() => setResultsDialogOpen(false)} 
+                        variant="contained" 
+                        size="large"
+                        sx={{ borderRadius: '50px', px: 4, fontWeight: 600 }}
+                    >
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 };

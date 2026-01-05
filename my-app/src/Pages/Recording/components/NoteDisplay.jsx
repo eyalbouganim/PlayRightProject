@@ -1,43 +1,49 @@
 // src/Pages/Recording/components/NoteDisplay.jsx
-import { Box, Typography, List, ListItem, ListItemText, Divider } from '@mui/material';
+import { Box, Typography, Chip, Fade } from '@mui/material';
 import React from 'react';
+
 const NoteDisplay = ({ notes }) => {
-    // Get last 10 notes for display
-    const recentNotes = notes.slice(-10).reverse();
+    // Get last 8 notes for display
+    const recentNotes = notes.slice(-8);
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="h6">Detected Notes</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Total: {notes.length}
+        <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: 1, 
+            height: 48,
+            width: '100%',
+            bgcolor: 'rgba(255,255,255,0.5)',
+            backdropFilter: 'blur(5px)',
+            borderRadius: 4,
+            px: 2
+        }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 1, fontWeight: 600, letterSpacing: 1 }}>
+                DETECTED:
             </Typography>
-            <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1, maxHeight: 200, overflow: 'auto' }}>
-                {recentNotes.length === 0 ? (
-                    <ListItem>
-                        <ListItemText primary="No notes detected yet..." />
-                    </ListItem>
-                ) : (
-                    recentNotes.map((note, index) => (
-                        <React.Fragment key={index}>
-                            <ListItem>
-                                <ListItemText
-                                    primary={
-                                        <Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>
-                                            {note.note}
-                                        </Typography>
-                                    }
-                                    secondary={
-                                        // Defensive check to prevent crashes if properties are missing
-                                        `at ${typeof note.start_time === 'number' ? note.start_time.toFixed(2) : 'N/A'}s ` +
-                                        `for ${typeof note.duration === 'number' ? note.duration.toFixed(2) : 'N/A'}s`
-                                    }
-                                />
-                            </ListItem>
-                            {index < recentNotes.length - 1 && <Divider component="li" />}
-                        </React.Fragment>
-                    ))
-                )}
-            </List>
+            
+            {recentNotes.length === 0 ? (
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    Waiting for input...
+                </Typography>
+            ) : (
+                recentNotes.map((note, index) => (
+                    <Fade in={true} key={`${index}-${note.note}`}>
+                        <Chip 
+                            label={note.note} 
+                            size="small" 
+                            color={index === recentNotes.length - 1 ? "primary" : "default"}
+                            variant={index === recentNotes.length - 1 ? "filled" : "outlined"}
+                            sx={{ 
+                                fontWeight: 'bold',
+                                minWidth: 32,
+                                opacity: 0.4 + ((index + 1) / recentNotes.length) * 0.6
+                            }} 
+                        />
+                    </Fade>
+                ))
+            )}
         </Box>
     );
 };

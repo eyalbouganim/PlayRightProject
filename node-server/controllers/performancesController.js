@@ -5,6 +5,7 @@ const Performance = require('../models/performanceModel');
 const logger = require('../utils/logger');
 const { sequelize } = require('../models/performanceModel');
 const Song = require('../models/songModel'); // Import the Song model
+const aiFeedbackService = require('../services/aiFeedbackService');
 
 /**
  * Prepares options for the performance analysis service.
@@ -179,11 +180,20 @@ const getUserRecentPerformances = async (req, res) => {
 
         const recentPerformances = await Performance.findAll({
             where: { user_id: userId },
-            limit: 5,
             order: [['createdAt', 'DESC']],
-            attributes: ['id', 'overall_score', 'pitch_accuracy', 'timing_accuracy', 'createdAt'],
+            attributes: [
+                'id',
+                ['overall_score', 'overallScore'],
+                ['pitch_accuracy', 'pitchAccuracy'],
+                ['timing_accuracy', 'timingAccuracy'],
+                ['detected_notes', 'detectedNotes'],
+                ['analysis_details', 'analysisDetails'],
+                ['audio_file_path', 'audioFilePath'],
+                'createdAt'
+            ],
             include: [{
                 model: Song,
+                as: 'song',
                 attributes: ['id', 'title'] // Include song title
             }]
         });
@@ -195,8 +205,50 @@ const getUserRecentPerformances = async (req, res) => {
     }
 };
 
+/*
+* Generates AI feedback for a specific performance.
+*/
+const getPerformanceFeedback = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id; 
+
+        const performance = await Performance.findOne({ 
+            where: { id: id, user_id: userId },
+            include: [{
+                model: Song,
+                as: 'song',
+                attributes: ['title']
+            }]
+        });
+
+        if (!performance) {
+            return res.status(404).json({ error: 'Performance not found' });
+        }
+
+        // IMPROVED CONTEXT: Handle missing/null data gracefully
+        const analysisContext = {
+            songTitle: performance.song ? performance.song.title : "the song", // Make sure to include Song model if needed
+            score: performance.overall_score || 0,
+            pitch: performance.pitch_accuracy || 0,
+            timing: performance.timing_accuracy || 0,
+            // If details are null, send a placeholder so AI doesn't complain
+            details: performance.analysis_details ? performance.analysis_details : "General practice session"
+        };
+
+        const feedback = await aiFeedbackService.generatePerformanceFeedback(analysisContext);
+        
+        res.json({ feedback });
+
+    } catch (error) {
+        logger.error(`Feedback Controller Error: ${error.message}`);
+        res.status(500).json({ error: 'Failed to generate feedback' });
+    }
+};
+
 module.exports = {
     analyzePerformance,
     getSongPerformanceStats,
-    getUserRecentPerformances
+    getUserRecentPerformances,
+    getPerformanceFeedback
 };
