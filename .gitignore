@@ -62,3 +62,6 @@ google-credentials.json
 key.json
 
 test-ai.js
+
+# MIDI dataset files
+training_data/
