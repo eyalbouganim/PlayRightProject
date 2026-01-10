@@ -8,6 +8,10 @@ import shutil
 import tempfile
 from transcription import transcribe_audio_to_midi
 
+# Redirect libraries to stderr so JSON isn't polluted
+original_stdout = sys.stdout
+sys.stdout = sys.stderr
+
 def run_alignment(audio_path, score_path):
     # Setup Paths
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -102,16 +106,14 @@ def parse_corresp(corresp_path, score_path, perf_path):
             }
             
             try:
-                # Parse Indices
                 p_idx = int(p_id_str.split('-')[-1])
                 s_idx = int(s_id_str.split('-')[-1])
                 match_obj["s_idx"] = s_idx
                 match_obj["p_idx"] = p_idx
 
-                # Strict Pitch Check
+                # STRICT PITCH CHECK (As you requested)
                 if perf_notes[p_idx].pitch == score_notes[s_idx].pitch:
                     strict_matches[s_idx] = True
-                    # Only add VALID matches to the list used for timing calculation
                     matches.append(match_obj)
                 else:
                     strict_matches[s_idx] = False
@@ -120,31 +122,20 @@ def parse_corresp(corresp_path, score_path, perf_path):
 
     if not matches: return []
 
-    # 3. Calculate Local Timing Deviations (The "Musician" Way)
-    # We create a map for easy lookup: Score_Index -> Predicted Deviation
     deviation_map = {}
-    
-    # Sort matches by score time to ensure linear processing
     matches.sort(key=lambda x: x["score_time"])
-    
-    window_size = 2 # Look 2 notes back and 2 notes forward (Total window ~5)
+    window_size = 2 
 
     for i in range(len(matches)):
         current = matches[i]
-        
-        # Define Local Window
         start_k = max(0, i - window_size)
         end_k = min(len(matches), i + window_size + 1)
-        
         window_matches = matches[start_k:end_k]
         
-        # If window is too small (e.g. start/end of song), use global or skip
         if len(window_matches) < 3:
-            deviation_map[current["s_idx"]] = 0.0 # Give benefit of doubt at start/end
+            deviation_map[current["s_idx"]] = 0.0
             continue
 
-        # Extract X (Score) and Y (Perf) for the window
-        # We EXCLUDE the current note from the fit to see if it stands out
         fit_x = []
         fit_y = []
         for m in window_matches:
@@ -156,17 +147,9 @@ def parse_corresp(corresp_path, score_path, perf_path):
             deviation_map[current["s_idx"]] = 0.0
             continue
 
-        # Calculate Local Slope (Tempo)
-        # We basically ask: "Given the surrounding notes, where SHOULD this one be?"
         try:
-            # [CRITICAL FIX] Handle Chords (Division by Zero protection)
-            # If all notes in the window have the exact same Score Time (a chord),
-            # the 'run' (dx) is 0, causing Polyfit to crash or output Infinity.
             x_spread = max(fit_x) - min(fit_x)
-            
             if x_spread < 0.001:
-                # Vertical line situation (Chord).
-                # We assume a slope of 1.0 (neutral tempo) locally to avoid crash.
                 slope = 1.0
                 intercept = np.mean(fit_y) - (slope * np.mean(fit_x))
             else:
@@ -176,11 +159,8 @@ def parse_corresp(corresp_path, score_path, perf_path):
             deviation = abs(current["perf_time"] - predicted_perf_time)
             deviation_map[current["s_idx"]] = deviation
         except:
-            # Fallback for any other linear algebra instability
             deviation_map[current["s_idx"]] = 0.0
 
-    # 4. Interpolation for UI (Visualization only)
-    # We still use interpolation to place the red "missing" notes on the timeline
     m_score_t = [m["score_time"] for m in matches]
     m_perf_t = [m["perf_time"] for m in matches]
     
@@ -190,23 +170,23 @@ def parse_corresp(corresp_path, score_path, perf_path):
     warped_starts = np.interp(orig_starts, m_score_t, m_perf_t)
     warped_ends = np.interp(orig_ends, m_score_t, m_perf_t)
     
-    # 5. Build Final Result
     result = []
     for i, note in enumerate(score_notes):
-        # Determine Status
         is_correct = (i in strict_matches and strict_matches[i] is True)
-        
-        # Get deviation if it exists, else 0
         timing_dev = deviation_map.get(i, 0.0)
+        if not is_correct: timing_dev = 0.0
+
+        # [FIX IS HERE] Force minimum duration for collapsed notes
+        final_start = float(warped_starts[i])
+        final_end = float(warped_ends[i])
         
-        # If note is wrong/missed, timing deviation is irrelevant (set to 0)
-        if not is_correct:
-            timing_dev = 0.0
+        if final_end <= final_start:
+             final_end = final_start + 0.1 # Force 100ms visibility if collapsed
 
         result.append({
             "pitch": int(note.pitch),
-            "start": float(warped_starts[i]),
-            "end": float(warped_ends[i]),
+            "start": final_start,
+            "end": final_end,
             "velocity": int(note.velocity),
             "original_start": float(note.start),
             "is_played": is_correct,
@@ -217,6 +197,12 @@ def parse_corresp(corresp_path, score_path, perf_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print(json.dumps({"error": "Usage: python align_eife.py <audio> <score>"}))
+        print(json.dumps({"error": "Usage: python align_eife.py <audio> <score>"}), file=original_stdout)
     else:
-        print(run_alignment(sys.argv[1], sys.argv[2]))
+        try:
+            result_json_str = run_alignment(sys.argv[1], sys.argv[2])
+            sys.stdout = original_stdout
+            print(result_json_str)
+        except Exception as e:
+            sys.stdout = original_stdout
+            print(json.dumps({"error": str(e)}))

@@ -164,88 +164,66 @@ const Recording = () => {
         setProcessedNotesCount(prevCount => prevCount + 1);
     }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses, songToPlay]);
 
-    // Scoring Logic - Updated to include MusicXML path
-    const submitForScoring = (audioBlob) => {
-        console.log('Submitting audio for scoring...', audioBlob);
+    // [UPDATED] Submission Logic
+    const submitForScoring = async (audioBlob) => {
+        console.log('🚀 Submitting to A2SA...');
         setIsScoring(true);
+
         const formData = new FormData();
-        formData.append('audioFile', audioBlob, 'performance.webm');
-
-        // The backend needs to know which song to compare against.
-        // We send the songId if we have one (from an upload or from 'My Songs').
-        // If not, we send 'default' so the backend knows to use the default song.
-        if (uploadedSongId) {
-            formData.append('songId', uploadedSongId);
-            console.log('Submitting performance for songId:', uploadedSongId);
-        } else {
-            formData.append('songId', 'default');
+        formData.append('audio', audioBlob, 'performance.wav');
+        
+        // Ensure songId is set
+        if (!uploadedSongId) {
+            alert("No song selected. Please upload or select a song first.");
+            setIsScoring(false);
+            return;
         }
+        formData.append('songId', uploadedSongId);
 
-        // Add tempo and timing tolerance
-        formData.append('tempo', tempo.toString());
-        formData.append('timingTolerance', timingTolerance.toString());
-
-
-        const headers = {
-            'Authorization': `Bearer ${token}`
-        };
-
-        fetch('http://localhost:3001/api/performances/analyze', { 
-            method: 'POST', 
-            body: formData,
-            headers: headers
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Analysis result received in React:', data);
-                setIsScoring(false);
-
-                if (data && data.playedNotes) {
-                    console.log("Played Notes:", data.playedNotes);
-                    
-                    // Display comparison results if available
-                    if (data.comparison) {
-                        setPerformanceResults(data.comparison);
-                        setResultsDialogOpen(true);
-                        
-                        // Log detailed results
-                        console.log('Detailed comparison:', data.comparison.details);
-                    } else {
-                        alert('Performance recorded successfully! (No comparison data available)');
-                    }
-                } else if (data && data.error) {
-                    alert(`Analysis Error: ${data.error}`);
-                    console.error("Analysis Error:", data.error);
-                } else {
-                    alert('Received unexpected data format from server.');
-                    console.error('Unexpected data:', data);
-                }
-            })
-            .catch(err => {
-                console.error('Error submitting score:', err);
-                setIsScoring(false);
-                alert(`Error submitting score: ${err.message}`);
+        try {
+            // Check your port! Ensure this matches your Node server port (3001 or 5000)
+            const response = await fetch('http://localhost:3001/api/a2sa/align', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
             });
+
+            if (!response.ok) throw new Error("Analysis failed");
+
+            const data = await response.json();
+            console.log("✅ A2SA Results:", data);
+
+            if (data.status === 'success') {
+                setPerformanceResults(data.alignment);
+                setResultsDialogOpen(true);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Analysis Error: " + err.message);
+        } finally {
+            setIsScoring(false);
+        }
     };
 
-    // Playback and Submission Logic
-    useEffect(() => {
-        if (recorderHook.audioBlob) {
-            const url = URL.createObjectURL(recorderHook.audioBlob);
+const handleStop = async () => {
+        // Stop the visualizer (waveform)
+        if (streamHook.stopRecording) streamHook.stopRecording();
+        
+        // Stop the real recorder and WAIT for the file
+        // This 'blob' is guaranteed to be the complete audio file
+        const blob = await recorderHook.stopFullRecording();
+        
+        if (blob && blob.size > 0) {
+            // Create URL for playback
+            const url = URL.createObjectURL(blob);
             setPlaybackUrl(url);
-            submitForScoring(recorderHook.audioBlob, uploadedSongId);
+            
+            // Send to Backend immediately
+            submitForScoring(blob); 
+        } else {
+            console.error("Recording failed: Blob was empty");
         }
-        return () => {
-            if (playbackUrl) {
-                URL.revokeObjectURL(playbackUrl);
-            }
-        };
-    }, [recorderHook.audioBlob, uploadedSongId]);
+    };
 
     // Control Functions
     const handleStart = async () => {
@@ -256,11 +234,6 @@ const Recording = () => {
 
         await streamHook.startRecording();
         recorderHook.startFullRecording();
-    };
-
-    const handleStop = () => {
-        streamHook.stopRecording();
-        recorderHook.stopFullRecording();
     };
 
     const handleReset = () => {
