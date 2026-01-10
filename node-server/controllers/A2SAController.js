@@ -25,33 +25,18 @@ try:
             element.activeSite.remove(element)
     except: pass
 
-    # 3. NUKE REPEATS (The Fix for "Cannot Expand Stream")
-    # We must remove both the Text Expressions (D.C.) AND the Barline Triggers
-    
-    # A. Remove explicit Repeat Expressions (D.C., Fine, Segno)
+    # 3. DELETE REPEATS (D.C. al Fine, Dal Segno, Fine)
     try:
-        # music21.repeat.RepeatExpression covers DaCapo, Fine, DalSegno, etc.
-        for element in s.recurse().getElementsByClass('RepeatExpression'):
+        for element in s.recurse().getElementsByClass(['DaCapo', 'Fine', 'DalSegno', 'RepeatExpression']):
             element.activeSite.remove(element)
-    except: pass
-
-    # B. Sanitize Barlines (Remove |: and :| logic)
-    # This forces music21 to treat the file as linear (Measure 1 -> 2 -> 3...)
-    # ignoring any leftover repeat instructions that cause the crash.
-    try:
-        for m in s.recurse().getElementsByClass('Measure'):
-            # Remove repeat signs from Left Barline
-            if m.leftBarline is not None:
-                # If it's a repeat barline, destroy it or downgrade it to 'regular'
-                if isinstance(m.leftBarline, music21.bar.Repeat):
-                    m.leftBarline = None 
             
-            # Remove repeat signs from Right Barline
-            if m.rightBarline is not None:
-                if isinstance(m.rightBarline, music21.bar.Repeat):
-                    m.rightBarline = None
-    except Exception as e:
-        print(f"Warning sanitizing barlines: {e}")
+        # Sanitize Barlines (Remove |: and :| logic)
+        for m in s.recurse().getElementsByClass('Measure'):
+            if m.leftBarline and isinstance(m.leftBarline, music21.bar.Repeat):
+                m.leftBarline = None 
+            if m.rightBarline and isinstance(m.rightBarline, music21.bar.Repeat):
+                m.rightBarline = None
+    except: pass
 
     # 4. Extract the Piano Part (Both Hands)
     if hasattr(s, 'parts') and len(s.parts) > 0:
@@ -75,7 +60,6 @@ except Exception as e:
             throw new Error("MIDI file was not created by music21");
         }
 
-        // STEP 2: Scrub MIDI using pretty_midi
         const scrubCmd = `${pythonExe} -c "import pretty_midi; pm = pretty_midi.PrettyMIDI('${midiPath}'); pm.write('${midiPath}')"`;
         execSync(scrubCmd);
 
@@ -106,60 +90,30 @@ exports.align = async (req, res) => {
         return res.status(400).json({ error: "Missing songId" });
     }
 
-    // Temp file paths
     let tempXmlPath = null;
     let tempMidiPath = null;
 
     try {
-        // 2. Retrieve Song Data
         const song = await Song.findByPk(songId);
-        if (!song) {
-            throw new Error(`Song ${songId} not found`);
-        }
+        if (!song) throw new Error(`Song ${songId} not found`);
 
         const tempDir = path.join(__dirname, '..', 'uploads', 'temp');
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-        // Define paths
         const timestamp = Date.now();
         tempXmlPath = path.join(tempDir, `score-${songId}-${timestamp}.musicxml`);
         tempMidiPath = path.join(tempDir, `score-${songId}-${timestamp}.mid`);
 
-        // 3. Write MusicXML and Convert to MIDI
-        // We assume song.musicXml contains the XML string
         fs.writeFileSync(tempXmlPath, song.musicXml);
         
         const pythonExe = path.resolve(__dirname, '../../brain-server/venv/bin/python3');
-        
-        logger.info(`🧠 A2SA: Converting MusicXML to MIDI for Song ${songId}...`);
         const conversionSuccess = convertXmlToMidi(tempXmlPath, tempMidiPath, pythonExe);
         
         if (!conversionSuccess) {
-            throw new Error("Failed to convert Song MusicXML to MIDI. A2SA requires valid MIDI input.");
+            throw new Error("Failed to convert Song MusicXML to MIDI.");
         }
 
-        // ============================================================
-        // [DEBUG SAVE] ENABLED
-        // ============================================================
-        const debugDir = path.join(__dirname, '..', 'uploads', 'debug');
-        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-
-        // Save MIDI with a clear name so you can inspect it
-        const debugMidiPath = path.join(debugDir, `DEBUG_score_${songId}_generated.mid`);
-        fs.copyFileSync(tempMidiPath, debugMidiPath);
-        
-        // Save Audio too (to compare in your DAW)
-        const debugAudioPath = path.join(debugDir, `DEBUG_perf_${songId}_uploaded.wav`);
-        fs.copyFileSync(audioPath, debugAudioPath);
-
-        logger.info(`💾 DEBUG: Saved generated MIDI to: ${debugMidiPath}`);
-        logger.info(`💾 DEBUG: Saved uploaded Audio to: ${debugAudioPath}`);
-        // ============================================================
-
-        // 4. Spawn Alignment Process
         const scriptPath = path.resolve(__dirname, '../../brain-server/A2SA/python/align_eife.py');
-        logger.info(`🧠 A2SA: Spawning brain-server for user ${req.user.id}`);
-
         const pythonProcess = spawn(pythonExe, [scriptPath, audioPath, tempMidiPath]);
 
         let resultBuffer = '';
@@ -169,73 +123,90 @@ exports.align = async (req, res) => {
         pythonProcess.stderr.on('data', (data) => { errorBuffer += data.toString(); });
 
         pythonProcess.on('close', async (code) => {
-            // Cleanup temp files (You can comment these out if you want to keep them too)
             if (fs.existsSync(tempXmlPath)) fs.unlinkSync(tempXmlPath);
             if (fs.existsSync(tempMidiPath)) fs.unlinkSync(tempMidiPath);
             
-            // Handle Crash
             if (code !== 0) {
                 logger.error(`A2SA: Python process crashed with code ${code}`);
-                logger.error(`A2SA Stderr: ${errorBuffer}`);
-                // Try to find JSON in stdout even if it crashed (sometimes errors are printed there)
-                try {
-                    const parsed = JSON.parse(resultBuffer);
-                    if (parsed.error) {
-                        return res.status(500).json({ error: parsed.error, tool: parsed.tool, code: parsed.code });
-                    }
-                } catch(e) {}
-                
                 return res.status(500).json({ error: "Alignment Engine Crashed", details: errorBuffer });
             }
 
             try {
-                // 5. Robust JSON Parsing
                 let jsonStartIndex = resultBuffer.indexOf('[');
                 let jsonEndIndex = resultBuffer.lastIndexOf(']') + 1;
                 
-                // If no array, check for object (Error response)
                 if (jsonStartIndex === -1) {
                     jsonStartIndex = resultBuffer.indexOf('{');
                     jsonEndIndex = resultBuffer.lastIndexOf('}') + 1;
                 }
 
                 if (jsonStartIndex === -1 || jsonEndIndex <= jsonStartIndex) {
-                    logger.error("A2SA: No JSON found. Raw Output:", resultBuffer);
                     throw new Error("No valid JSON response from Alignment Engine");
                 }
                 
-                const jsonString = resultBuffer.substring(jsonStartIndex, jsonEndIndex);
-                const parsedData = JSON.parse(jsonString);
+                const parsedData = JSON.parse(resultBuffer.substring(jsonStartIndex, jsonEndIndex));
 
-                // [UPDATED] Check for errors returned by Python script
                 if (parsedData.error) {
-                    const toolInfo = parsedData.tool ? ` (Tool: ${parsedData.tool}, Code: ${parsedData.code})` : '';
-                    throw new Error(`Alignment Script Error: ${parsedData.error}${toolInfo}`);
+                    throw new Error(`Alignment Script Error: ${parsedData.error}`);
                 }
                 
                 const alignmentData = parsedData;
 
-                // 6. Grading Logic
-                const totalNotes = alignmentData.length;
-                const hitNotes = alignmentData.filter(n => n.is_played).length;
-                const pitchScore = totalNotes > 0 ? Math.round((hitNotes / totalNotes) * 100) : 0;
+                // ============================================================
+                // [UPDATED] STRICT-BUT-FAIR GRADING
+                // ============================================================
+                
+                const playedNotes = alignmentData.filter(n => n.is_played);
+                let avgDuration = 0.5; 
 
-                let totalTiming = 0;
-                let playedCount = 0;
+                if (playedNotes.length > 0) {
+                    const totalDur = playedNotes.reduce((sum, n) => sum + (n.end - n.start), 0);
+                    avgDuration = totalDur / playedNotes.length;
+                }
+
+                // 🎯 STRICT BUT NOT PRO SETTINGS
+                // 1. Minimum threshold raised to 60ms (Pro is 30ms, Casual is 100ms)
+                // 2. Maximum threshold clamped to 120ms (prevents lazy playing on slow songs)
+                const THRESHOLD_PERFECT = Math.min(0.12, Math.max(0.06, avgDuration * 0.20));
+                
+                // Okay Threshold: 150ms to 350ms
+                const THRESHOLD_OK = Math.min(0.35, Math.max(0.15, avgDuration * 0.50));
+
+                logger.info(`🎯 Grading: AvgDur=${avgDuration.toFixed(2)}s | Strict Perfect<${THRESHOLD_PERFECT.toFixed(3)}s`);
+
+                let totalTimingScore = 0;
+                let hitNotesCount = 0;
+
                 alignmentData.forEach(n => {
+                    n.quality = "missed";
+                    n.timing_score = 0;
+
                     if (n.is_played) {
+                        hitNotesCount++;
                         const dev = Math.abs(n.timing_deviation);
-                        let score = 100;
-                        if (dev > 0.3) score = 0;
-                        else if (dev > 0.05) score = 100 - ((dev - 0.05) / 0.25 * 100);
-                        totalTiming += score;
-                        playedCount++;
+                        
+                        if (dev <= THRESHOLD_PERFECT) {
+                            n.quality = "perfect"; // Green
+                            n.timing_score = 100;
+                        } else if (dev <= THRESHOLD_OK) {
+                            n.quality = "ok"; // Yellow
+                            const relativeError = (dev - THRESHOLD_PERFECT) / (THRESHOLD_OK - THRESHOLD_PERFECT);
+                            n.timing_score = Math.max(0, Math.round(100 * (1 - relativeError)));
+                        } else {
+                            n.quality = "bad"; // Orange
+                            n.timing_score = 0;
+                        }
+
+                        totalTimingScore += n.timing_score;
                     }
                 });
-                const timingScore = playedCount > 0 ? Math.round(totalTiming / playedCount) : 0;
+
+                const totalNotes = alignmentData.length;
+                const pitchScore = totalNotes > 0 ? Math.round((hitNotesCount / totalNotes) * 100) : 0;
+                const timingScore = hitNotesCount > 0 ? Math.round(totalTimingScore / hitNotesCount) : 0;
+                
                 const finalGrade = Math.round((pitchScore * 0.7) + (timingScore * 0.3));
 
-                // 7. Save Performance
                 const performance = await Performance.create({
                     user_id: req.user.id,
                     song_id: parseInt(songId, 10),

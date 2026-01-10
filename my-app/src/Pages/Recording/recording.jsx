@@ -21,6 +21,7 @@ import StopCircleIcon from '@mui/icons-material/StopCircle';
 import ReplayIcon from '@mui/icons-material/Replay';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
+import AudioFileIcon from '@mui/icons-material/AudioFile';
 import { useAudioStream } from '../../hooks/useAudioStream';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import LiveRecorder from './components/LiveRecorder';
@@ -170,7 +171,7 @@ const Recording = () => {
         setIsScoring(true);
 
         const formData = new FormData();
-        formData.append('audio', audioBlob, 'performance.wav');
+        formData.append('audio', audioBlob, audioBlob.name || 'performance.wav');
         
         // Ensure songId is set
         if (!uploadedSongId) {
@@ -194,7 +195,7 @@ const Recording = () => {
             console.log("✅ A2SA Results:", data);
 
             if (data.status === 'success') {
-                setPerformanceResults(data.alignment);
+                setPerformanceResults(data);
                 setResultsDialogOpen(true);
             }
         } catch (err) {
@@ -202,6 +203,17 @@ const Recording = () => {
             alert("Analysis Error: " + err.message);
         } finally {
             setIsScoring(false);
+        }
+    };
+
+    // Handle audio file upload
+    const handleAudioUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            setPlaybackUrl(url);
+            // Submit for scoring
+            submitForScoring(file);
         }
     };
 
@@ -310,6 +322,18 @@ const handleStop = async () => {
                     sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
                 >
                     My Songs
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<AudioFileIcon />}
+                    size="small"
+                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
+                    disabled={streamHook.isRecording}
+                >
+                    Upload Audio
+                    <input type="file" hidden accept="audio/*" onChange={handleAudioUpload} />
                 </Button>
 
                 <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', md: 'block' } }} />
@@ -449,7 +473,7 @@ const handleStop = async () => {
             <Dialog 
                 open={resultsDialogOpen} 
                 onClose={() => setResultsDialogOpen(false)}
-                maxWidth="sm"
+                maxWidth="lg"
                 fullWidth
                 PaperProps={{
                     sx: {

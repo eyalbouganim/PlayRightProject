@@ -6,24 +6,27 @@ const RecordingScore = ({ performanceResults }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Handle both the new object format and potential legacy array format
+  const { alignment, grade, breakdown } = performanceResults?.alignment ? performanceResults : { alignment: performanceResults };
+  const notes = alignment || [];
+
   useEffect(() => {
-    if (!performanceResults || !canvasRef.current || !containerRef.current) return;
+    if (!notes || notes.length === 0 || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const container = containerRef.current;
     
     // --- VISUALIZATION CONFIG ---
-    const PIXELS_PER_SECOND = 100; // Horizontal Zoom
-    const NOTE_HEIGHT = 12;        // Vertical Key Height
+    const PIXELS_PER_SECOND = 120; // Horizontal Zoom (Bigger)
+    const NOTE_HEIGHT = 20;        // Vertical Key Height (Bigger)
     
     // Determine Range dynamically based on the notes played
-    const pitches = performanceResults.map(n => n.pitch);
+    const pitches = notes.map(n => n.pitch);
     const minPitch = Math.min(...pitches) - 2; // Add padding
     const maxPitch = Math.max(...pitches) + 2;
     const pitchRange = maxPitch - minPitch;
 
-    const maxTime = Math.max(...performanceResults.map(n => n.end)) + 1;
+    const maxTime = Math.max(...notes.map(n => n.end)) + 1;
     
     // Set Dimensions
     const width = maxTime * PIXELS_PER_SECOND;
@@ -53,7 +56,7 @@ const RecordingScore = ({ performanceResults }) => {
     }
 
     // 3. Draw Notes
-    performanceResults.forEach(note => {
+    notes.forEach(note => {
       // Invert Y axis: Higher pitch should be higher up (Lower Y value)
       const pitchOffset = maxPitch - note.pitch; 
       
@@ -62,16 +65,27 @@ const RecordingScore = ({ performanceResults }) => {
       const w = Math.max((note.end - note.start) * PIXELS_PER_SECOND, 5); // Min width 5px
       const h = NOTE_HEIGHT - 1; // Gap between keys
 
-      // Color Logic
-      let color = '#2ecc71'; // Green (Correct)
-      let strokeColor = '#27ae60';
+      // --- UPDATED COLOR LOGIC (Backend Driven) ---
+      let color = '#e74c3c';       // Red (Default/Missed)
+      let strokeColor = '#c0392b';
 
-      if (!note.is_played) {
-        color = '#e74c3c'; // Red (Missed)
-        strokeColor = '#c0392b';
-      } else if (note.timing_deviation > 0.15) {
-        color = '#f1c40f'; // Yellow (Late/Early)
+      // The frontend now relies on the 'quality' tag calculated by the backend
+      // 'perfect', 'ok', 'bad', or 'missed'
+      if (note.quality === 'perfect') {
+        color = '#2ecc71';         // Green (Perfect)
+        strokeColor = '#27ae60';
+      } else if (note.quality === 'ok') {
+        color = '#f1c40f';         // Yellow (Okay)
         strokeColor = '#f39c12';
+      } else if (note.quality === 'bad') {
+        color = '#e67e22';         // Orange (Sloppy/Bad Timing)
+        strokeColor = '#d35400';
+      }
+      
+      // Safety check: if is_played is false, force Red regardless of quality tag
+      if (!note.is_played) {
+        color = '#e74c3c'; 
+        strokeColor = '#c0392b';
       }
 
       // Draw Note Bar
@@ -94,20 +108,42 @@ const RecordingScore = ({ performanceResults }) => {
       }
     });
 
-  }, [performanceResults]);
+  }, [notes]);
 
-  if (!performanceResults) return <Typography>No alignment data available.</Typography>;
+  if (!notes || notes.length === 0) return <Typography>No alignment data available.</Typography>;
 
   return (
-    <Box sx={{ width: '100%', overflowX: 'auto', bgcolor: '#2c3e50', borderRadius: 2, p: 1, border: '1px solid #ddd' }}>
+    <Box sx={{ width: '100%' }}>
+        {/* Score Display */}
+        {grade !== undefined && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 3, p: 2, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 3 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h3" color="primary.main" fontWeight="800">{grade}%</Typography>
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1 }}>OVERALL</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="text.primary" fontWeight="700">{breakdown?.pitch}%</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold">PITCH</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="text.primary" fontWeight="700">{breakdown?.timing}%</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold">TIMING</Typography>
+                </Box>
+            </Box>
+        )}
+
+        <Box sx={{ width: '100%', overflowX: 'auto', bgcolor: '#2c3e50', borderRadius: 2, p: 1, border: '1px solid #ddd' }}>
         <div ref={containerRef}>
             <canvas ref={canvasRef} />
         </div>
+        {/* UPDATED LEGEND to match dynamic grading */}
         <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: 'center' }}>
-            <Typography variant="caption" sx={{ color: '#2ecc71' }}>■ Correct</Typography>
-            <Typography variant="caption" sx={{ color: '#f1c40f' }}>■ Imprecise (&gt;150ms)</Typography>
+            <Typography variant="caption" sx={{ color: '#2ecc71' }}>■ Perfect</Typography>
+            <Typography variant="caption" sx={{ color: '#f1c40f' }}>■ Okay</Typography>
+            <Typography variant="caption" sx={{ color: '#e67e22' }}>■ Imprecise</Typography>
             <Typography variant="caption" sx={{ color: '#e74c3c' }}>■ Missed</Typography>
         </Box>
+    </Box>
     </Box>
   );
 };
