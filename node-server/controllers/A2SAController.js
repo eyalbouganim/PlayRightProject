@@ -168,8 +168,6 @@ exports.align = async (req, res) => {
                 // 1. Minimum threshold raised to 60ms (Pro is 30ms, Casual is 100ms)
                 // 2. Maximum threshold clamped to 120ms (prevents lazy playing on slow songs)
                 const THRESHOLD_PERFECT = Math.min(0.12, Math.max(0.06, avgDuration * 0.20));
-                
-                // Okay Threshold: 150ms to 350ms
                 const THRESHOLD_OK = Math.min(0.35, Math.max(0.15, avgDuration * 0.50));
 
                 logger.info(`🎯 Grading: AvgDur=${avgDuration.toFixed(2)}s | Strict Perfect<${THRESHOLD_PERFECT.toFixed(3)}s`);
@@ -180,20 +178,33 @@ exports.align = async (req, res) => {
                 alignmentData.forEach(n => {
                     n.quality = "missed";
                     n.timing_score = 0;
+                    n.timing_status = null; // New Field: "early", "late", or null
 
                     if (n.is_played) {
                         hitNotesCount++;
-                        const dev = Math.abs(n.timing_deviation);
                         
+                        // Capture Raw Deviation (Signed) and Absolute Deviation (Magnitude)
+                        const rawDev = n.timing_deviation; 
+                        const dev = Math.abs(rawDev);
+                        
+                        // Determine Early/Late for ALL played notes (useful for debugging/UI)
+                        // negative = early, positive = late
+                        const status = rawDev < 0 ? "early" : "late";
+
                         if (dev <= THRESHOLD_PERFECT) {
-                            n.quality = "perfect"; // Green
+                            n.quality = "perfect"; 
                             n.timing_score = 100;
+                            // Perfect notes don't usually need a warning label, 
+                            // but you can set n.timing_status = status if you want strict feedback.
                         } else if (dev <= THRESHOLD_OK) {
-                            n.quality = "ok"; // Yellow
+                            n.quality = "ok"; 
+                            n.timing_status = status; // "early" or "late"
+                            
                             const relativeError = (dev - THRESHOLD_PERFECT) / (THRESHOLD_OK - THRESHOLD_PERFECT);
                             n.timing_score = Math.max(0, Math.round(100 * (1 - relativeError)));
                         } else {
-                            n.quality = "bad"; // Orange
+                            n.quality = "bad"; 
+                            n.timing_status = status; // "early" or "late"
                             n.timing_score = 0;
                         }
 

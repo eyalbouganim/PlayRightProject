@@ -156,7 +156,8 @@ def parse_corresp(corresp_path, score_path, perf_path):
                 slope, intercept = np.polyfit(fit_x, fit_y, 1)
                 
             predicted_perf_time = (slope * current["score_time"]) + intercept
-            deviation = abs(current["perf_time"] - predicted_perf_time)
+            # No abs needed, we want signed deviation so we can see early/late
+            deviation = current["perf_time"] - predicted_perf_time
             deviation_map[current["s_idx"]] = deviation
         except:
             deviation_map[current["s_idx"]] = 0.0

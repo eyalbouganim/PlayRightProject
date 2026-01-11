@@ -88,6 +88,10 @@ const RecordingScore = ({ performanceResults }) => {
         strokeColor = '#c0392b';
       }
 
+      if (note.quality === 'ok' || note.quality === 'bad') {
+        const text = note.timing_status === 'early' ? 'EARLY' : 'LATE';
+      }
+
       // Draw Note Bar
       ctx.fillStyle = color;
       ctx.fillRect(x, y, w, h);
@@ -97,14 +101,27 @@ const RecordingScore = ({ performanceResults }) => {
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, w, h);
 
-      // Draw Labels (Pitch Name or Deviation)
-      if (w > 30) {
+      // --- UPDATED LABEL LOGIC ---
+      if (w > 30) { // Only draw text if the note is wide enough
         ctx.fillStyle = '#fff';
         ctx.font = '10px Arial';
-        const label = note.is_played 
-            ? `${Math.round(note.timing_deviation * 1000)}ms` 
-            : 'MISS';
-        ctx.fillText(label, x + 2, y + 9);
+        
+        let label = '';
+
+        if (!note.is_played) {
+            label = 'MISS';
+        } else if (note.quality === 'perfect') {
+            // For perfect notes, just show the precise timing
+            label = `${Math.round(Math.abs(note.timing_deviation) * 1000)}ms`;
+        } else {
+            // For 'ok' or 'bad', show the Feedback (EARLY/LATE)
+            // We use the status we added in the backend
+            const direction = note.timing_status === 'early' ? 'EARLY' : 'LATE';
+            label = direction;
+        }
+
+        // Draw the text centered vertically in the note bar
+        ctx.fillText(label, x + 4, y + 13);
       }
     });
 
