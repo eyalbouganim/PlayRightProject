@@ -1,47 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Container,
     Box,
     Typography,
-    Button,
     Paper,
-    TextField,
-    Chip,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
-    Divider,
-    CircularProgress
+    Button,
+    CircularProgress,
+    Grid,
+    Card,
+    CardContent,
+    CardActionArea,
+    Grow,
+    Snackbar,
+    Alert
 } from '@mui/material';
-import LinkIcon from '@mui/icons-material/Link';
-import MicIcon from '@mui/icons-material/Mic';
-import StopCircleIcon from '@mui/icons-material/StopCircle';
-import ReplayIcon from '@mui/icons-material/Replay';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
-import AudioFileIcon from '@mui/icons-material/AudioFile';
-import { useAudioStream } from '../../hooks/useAudioStream';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
-import LiveRecorder from './components/LiveRecorder';
 import SheetMusicDisplay from './components/SheetMusicDisplay';
-import { defaultMusicXML } from '../../assets/defaultMusicXML';
 import SongRetriever from './components/SongRetriever';
+import RecordingHeader from './components/RecordingHeader';
+import RecordingControls from './components/RecordingControls';
+import AnalysisDialog from './components/AnalysisDialog';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
 import RecordingScore from './components/RecordingScore';
 
 const Recording = () => {
     const navigate = useNavigate();
-    const streamHook = useAudioStream();
     const recorderHook = useAudioRecorder();
-    const { notes: detectedNotes, isRecording } = streamHook;
 
-    // Get the auth token once for the entire component
     const token = localStorage.getItem('token');
 
-    // EFFECT: Check for authentication token on component mount.
-    // If no token is found, redirect the user to the login page.
     useEffect(() => {
         if (!token) {
             console.error("No authentication token found. Redirecting to login.");
@@ -50,23 +43,58 @@ const Recording = () => {
     }, [token, navigate]);
 
     // State
-    const [musicXML, setMusicXML] = useState(defaultMusicXML);
+    const [musicXML, setMusicXML] = useState(null);
     const [uploadedFileName, setUploadedFileName] = useState(null);
-    const [uploadedSongId, setUploadedSongId] = useState(null); // To store the ID of the uploaded song
+    const [uploadedSongId, setUploadedSongId] = useState(null);
     const [songToPlay, setSongToPlay] = useState([]);
+    const [isRecording, setIsRecording] = useState(false);
     const [currentTargetNoteIndex, setCurrentTargetNoteIndex] = useState(0);
     const [noteStatuses, setNoteStatuses] = useState([]);
     const [processedNotesCount, setProcessedNotesCount] = useState(0);
     const [isScoring, setIsScoring] = useState(false);
     const [playbackUrl, setPlaybackUrl] = useState(null);
-    const [tempo, setTempo] = useState(120); // Default tempo
-    const [timingTolerance, setTimingTolerance] = useState(0.3); // Default tolerance
+    const [tempo, setTempo] = useState(120);
+    const [isMetronomeOn, setIsMetronomeOn] = useState(false);
+    const [metronomeVolume, setMetronomeVolume] = useState(0.5);
+    const metronomeVolumeRef = useRef(metronomeVolume);
+    const [countdownDuration, setCountdownDuration] = useState(3);
+    const [isCountingDown, setIsCountingDown] = useState(false);
+    const [currentCountdown, setCurrentCountdown] = useState(0);
+    const [timingTolerance, setTimingTolerance] = useState(0.3);
     const [isSongRetrieverOpen, setIsSongRetrieverOpen] = useState(false);
     const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
     const [performanceResults, setPerformanceResults] = useState(null);
+    const [availableSongs, setAvailableSongs] = useState([]);
+    const [isLoadingSongs, setIsLoadingSongs] = useState(false);
+    const [showMetronomeHint, setShowMetronomeHint] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
-    // Parse MusicXML whenever it changes
     useEffect(() => {
+        const fetchSongs = async () => {
+            if (!token) return;
+            setIsLoadingSongs(true);
+            try {
+                const response = await fetch('http://localhost:3001/api/songs', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setAvailableSongs(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch songs", error);
+            } finally {
+                setIsLoadingSongs(false);
+            }
+        };
+
+        if (!musicXML) {
+            fetchSongs();
+        }
+    }, [token, musicXML]);
+
+    useEffect(() => {
+        if (!musicXML) return;
         try {
             const notes = parseMusicXMLToNotes(musicXML);
             console.log('Parsed notes from MusicXML:', notes);
@@ -80,18 +108,83 @@ const Recording = () => {
         }
     }, [musicXML]);
 
-    // Handle file upload - Upload to server and display
+    useEffect(() => {
+        let timer;
+        if (isCountingDown && currentCountdown > 0) {
+            timer = setTimeout(() => {
+                setCurrentCountdown((prev) => prev - 1);
+            }, 1000);
+        } else if (isCountingDown && currentCountdown === 0) {
+            setIsCountingDown(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isCountingDown, currentCountdown]);
+
+    useEffect(() => {
+        metronomeVolumeRef.current = metronomeVolume;
+    }, [metronomeVolume]);
+
+    // Metronome Logic
+    useEffect(() => {
+        let audioContext = null;
+        let timerID = null;
+
+        if (isRecording && !isCountingDown && isMetronomeOn) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                let nextNoteTime = audioContext.currentTime;
+                const lookahead = 25.0;
+                const scheduleAheadTime = 0.1;
+
+                const scheduleNote = (time) => {
+                    const osc = audioContext.createOscillator();
+                    const envelope = audioContext.createGain();
+
+                    osc.frequency.value = 800;
+                    osc.type = 'sine'; 
+                    
+                    envelope.gain.setValueAtTime(metronomeVolumeRef.current, time);
+                    envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+
+                    osc.connect(envelope);
+                    envelope.connect(audioContext.destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.03);
+                };
+
+                const scheduler = () => {
+                    while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
+                        scheduleNote(nextNoteTime);
+                        const secondsPerBeat = 60.0 / tempo;
+                        nextNoteTime += secondsPerBeat;
+                    }
+                    timerID = setTimeout(scheduler, lookahead);
+                };
+
+                scheduler();
+            } catch (e) {
+                console.error("Metronome error:", e);
+            }
+        }
+
+        return () => {
+            if (timerID) clearTimeout(timerID);
+            if (audioContext) {
+                audioContext.close().catch(e => console.error("Error closing AudioContext:", e));
+            }
+        };
+    }, [isRecording, isCountingDown, isMetronomeOn, tempo]);
+
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
         try {
-            // Upload the MusicXML file to create a new song entry
             const formData = new FormData();
             formData.append('musicXmlFile', file);
 
-
-            // Add the Authorization header to the request
             const headers = {
                 'Authorization': `Bearer ${token}`
             };
@@ -103,7 +196,6 @@ const Recording = () => {
             });
 
             if (!uploadResponse.ok) {
-                // Handle auth error specifically
                 if (uploadResponse.status === 401 || uploadResponse.status === 403) {
                     throw new Error('Not authorized, token failed');
                 }
@@ -116,7 +208,6 @@ const Recording = () => {
             setUploadedSongId(uploadResult.song.id);
             setUploadedFileName(uploadResult.song.title);
 
-            // Read the file content for display
             const reader = new FileReader();
             reader.onload = (e) => {
                 const content = e.target.result;
@@ -131,41 +222,35 @@ const Recording = () => {
         }
     };
 
-    // Handle song selection from the retriever
-    const handleSongRetrieved = (song) => {
-        if (song && song.musicXml) {
-            console.log('Song retrieved:', song);
-            setMusicXML(song.musicXml);
-            setUploadedSongId(song.id);
-            setUploadedFileName(song.title);
-        } else {
+    const handleSongRetrieved = async (song) => {
+        if (!song) return;
+
+        try {
+            let songData = song;
+
+            if (!songData.musicXml && songData.id) {
+                const response = await fetch(`http://localhost:3001/api/songs/${songData.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    songData = await response.json();
+                }
+            }
+
+            if (songData && songData.musicXml) {
+                console.log('Song retrieved:', songData);
+                setMusicXML(songData.musicXml);
+                setUploadedSongId(songData.id);
+                setUploadedFileName(songData.title);
+            } else {
+                throw new Error('MusicXML data missing');
+            }
+        } catch (error) {
+            console.error('Error loading song:', error);
             alert('Could not load the selected song. The file might be corrupted or missing.');
         }
     };
 
-    // Live comparison logic
-    useEffect(() => {
-        if (!isRecording || detectedNotes.length <= processedNotesCount || currentTargetNoteIndex >= songToPlay.length) {
-            return;
-        }
-
-        const nextNoteToProcess = detectedNotes[processedNotesCount];
-        const targetNote = songToPlay[currentTargetNoteIndex];
-
-        if (nextNoteToProcess.note === targetNote.name) {
-            const newStatuses = [...noteStatuses];
-            newStatuses[currentTargetNoteIndex] = 'correct';
-            setNoteStatuses(newStatuses);
-            setCurrentTargetNoteIndex(prevIndex => prevIndex + 1);
-        } else {
-            const newStatuses = [...noteStatuses];
-            newStatuses[currentTargetNoteIndex] = 'incorrect';
-            setNoteStatuses(newStatuses);
-        }
-        setProcessedNotesCount(prevCount => prevCount + 1);
-    }, [detectedNotes, isRecording, currentTargetNoteIndex, processedNotesCount, noteStatuses, songToPlay]);
-
-    // [UPDATED] Submission Logic
     const submitForScoring = async (audioBlob) => {
         console.log('🚀 Submitting to A2SA...');
         setIsScoring(true);
@@ -173,7 +258,6 @@ const Recording = () => {
         const formData = new FormData();
         formData.append('audio', audioBlob, audioBlob.name || 'performance.wav');
         
-        // Ensure songId is set
         if (!uploadedSongId) {
             alert("No song selected. Please upload or select a song first.");
             setIsScoring(false);
@@ -182,7 +266,6 @@ const Recording = () => {
         formData.append('songId', uploadedSongId);
 
         try {
-            // Check your port! Ensure this matches your Node server port (3001 or 5000)
             const response = await fetch('http://localhost:3001/api/a2sa/align', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -206,51 +289,46 @@ const Recording = () => {
         }
     };
 
-    // Handle audio file upload
     const handleAudioUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
             const url = URL.createObjectURL(file);
             setPlaybackUrl(url);
-            // Submit for scoring
             submitForScoring(file);
         }
     };
 
-const handleStop = async () => {
-        // Stop the visualizer (waveform)
-        if (streamHook.stopRecording) streamHook.stopRecording();
-        
-        // Stop the real recorder and WAIT for the file
-        // This 'blob' is guaranteed to be the complete audio file
+    const handleStop = async () => {
+        setIsCountingDown(false);
         const blob = await recorderHook.stopFullRecording();
+        setIsRecording(false);
         
         if (blob && blob.size > 0) {
-            // Create URL for playback
             const url = URL.createObjectURL(blob);
             setPlaybackUrl(url);
-            
-            // Send to Backend immediately
             submitForScoring(blob); 
         } else {
             console.error("Recording failed: Blob was empty");
         }
     };
 
-    // Control Functions
     const handleStart = async () => {
         setPlaybackUrl(null);
         setCurrentTargetNoteIndex(0);
         setNoteStatuses(new Array(songToPlay.length).fill('pending'));
         setProcessedNotesCount(0);
 
-        await streamHook.startRecording();
         recorderHook.startFullRecording();
+        setIsRecording(true);
+
+        setIsCountingDown(true);
+        setCurrentCountdown(countdownDuration);
     };
 
     const handleReset = () => {
-        streamHook.reset();
+        setIsCountingDown(false);
         recorderHook.stopFullRecording();
+        setIsRecording(false);
         setCurrentTargetNoteIndex(0);
         setNoteStatuses(new Array(songToPlay.length).fill('pending'));
         setProcessedNotesCount(0);
@@ -258,134 +336,14 @@ const handleStop = async () => {
         setPlaybackUrl(null);
     };
 
+    const handleCursorUpdate = (newIndex) => {
+        if (newIndex <= songToPlay.length) {
+            setCurrentTargetNoteIndex(newIndex);
+        }
+    };
+
     return (
-        <Container maxWidth="xl" sx={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', py: 2 }}>
-            {/* Top Bar: Compact Header & File Controls */}
-            <Paper
-                elevation={0}
-                sx={{
-                    p: 2,
-                    mb: 2,
-                    borderRadius: 3,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(20px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.5)',
-                    display: 'flex',
-                    flexDirection: { xs: 'column', md: 'row' },
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 2,
-                    flexShrink: 0
-                }}
-            >
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'center', md: 'flex-start' } }}>
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.01em' }}>
-                        Studio Session
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                        <Chip 
-                            label={streamHook.status} 
-                            color={streamHook.isConnected ? (streamHook.isRecording ? 'error' : 'success') : 'default'} 
-                            size="small" 
-                            variant="filled"
-                        />
-                        {uploadedFileName ? (
-                            <Chip label={uploadedFileName} size="small" color="primary" variant="outlined" />
-                        ) : (
-                            <Typography variant="caption" color="text.secondary">Default: "Twinkle Twinkle Little Star"</Typography>
-                        )}
-                    </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
-                <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<UploadFileIcon />}
-                    size="small"
-                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                >
-                    Upload XML
-                    <input
-                        type="file"
-                        hidden
-                        accept=".xml,.musicxml"
-                        onChange={handleFileUpload}
-                    />
-                </Button>
-                <Button
-                    variant="outlined"
-                    startIcon={<LibraryMusicIcon />}
-                    onClick={() => setIsSongRetrieverOpen(true)}
-                    size="small"
-                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                >
-                    My Songs
-                </Button>
-
-                <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<AudioFileIcon />}
-                    size="small"
-                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                    disabled={streamHook.isRecording}
-                >
-                    Upload Audio
-                    <input type="file" hidden accept="audio/*" onChange={handleAudioUpload} />
-                </Button>
-
-                <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', md: 'block' } }} />
-
-                {/* Recording Controls */}
-                {!streamHook.isConnected ? (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={streamHook.connect}
-                        disabled={streamHook.status.includes('Connecting')}
-                        startIcon={<LinkIcon />}
-                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                        Connect
-                    </Button>
-                ) : !streamHook.isRecording ? (
-                    <Button
-                        variant="contained"
-                        color="success"
-                        onClick={handleStart}
-                        disabled={!streamHook.status.includes('Ready')}
-                        startIcon={<MicIcon />}
-                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                        Record
-                    </Button>
-                ) : (
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={handleStop}
-                        startIcon={<StopCircleIcon />}
-                        sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                        Stop
-                    </Button>
-                )}
-
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={handleReset}
-                    disabled={!streamHook.isConnected}
-                    startIcon={<ReplayIcon />}
-                    sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-                >
-                    Reset
-                </Button>
-                </Box>
-            </Paper>
-
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: '#f8f9fa' }}>
             <SongRetriever
                 open={isSongRetrieverOpen}
                 onClose={() => setIsSongRetrieverOpen(false)}
@@ -393,83 +351,212 @@ const handleStop = async () => {
                 token={token}
             />
 
-            {/* Note Display & Errors (if any) */}
-            <Box sx={{ mb: 1, display: 'flex', justifyContent: 'center', width: '100%', flexShrink: 0, zIndex: 10 }}>
-                <LiveRecorder
-                    notes={detectedNotes}
-                    error={streamHook.error || recorderHook.recorderError}
-                />
-            </Box>
+            <RecordingHeader
+                isRecording={isRecording}
+                uploadedFileName={uploadedFileName}
+                handleFileUpload={handleFileUpload}
+                setIsSongRetrieverOpen={setIsSongRetrieverOpen}
+                handleAudioUpload={handleAudioUpload}
+                showSettings={showSettings}
+                setShowSettings={setShowSettings}
+                countdownDuration={countdownDuration}
+                setCountdownDuration={setCountdownDuration}
+                tempo={tempo}
+                setTempo={setTempo}
+                isMetronomeOn={isMetronomeOn}
+                setIsMetronomeOn={setIsMetronomeOn}
+                setShowMetronomeHint={setShowMetronomeHint}
+                metronomeVolume={metronomeVolume}
+                setMetronomeVolume={setMetronomeVolume}
+            />
 
-            {/* Main Sheet Music Area - Takes remaining space */}
-            <Paper 
-                elevation={0} 
-                sx={{ 
-                    flexGrow: 1,
-                    overflow: 'hidden',
-                    borderRadius: 3,
-                    bgcolor: 'white',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-                    border: '1px solid rgba(0, 0, 0, 0.05)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    mb: 2
-                }}
-            >
-                <Box sx={{ width: '100%', height: '100%', p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Box sx={{ width: '100%', height: '100%' }}>
-                    <SheetMusicDisplay
-                        musicXML={musicXML}
-                        currentTargetNoteIndex={currentTargetNoteIndex}
-                        noteStatuses={noteStatuses}
-                    />
-                    </Box>
-                </Box>
-            </Paper>
-
-            {/* Feedback & Playback Section - Appears at bottom */}
-            {currentTargetNoteIndex >= songToPlay.length && !isRecording && songToPlay.length > 0 && (
-                <Box sx={{ textAlign: 'center', mb: 2, p: 2, bgcolor: 'success.light', borderRadius: 3, color: 'white', boxShadow: 2, flexShrink: 0 }}>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                        🎉 Session Complete! 🎉
-                    </Typography>
-                    <Typography variant="subtitle1">
-                        Great job! Check your playback below.
-                    </Typography>
-                </Box>
-            )}
-
-            {playbackUrl && (
-                <Paper 
-                    elevation={0} 
-                    sx={{ 
-                        p: 2, 
-                        borderRadius: 3,
-                        bgcolor: 'rgba(255, 255, 255, 0.9)',
-                        backdropFilter: 'blur(20px)',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.5)',
-                        textAlign: 'center',
-                        flexShrink: 0
-                    }}
-                >
-                    <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        Session Playback
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                        <audio src={playbackUrl} controls style={{ width: '100%', maxWidth: '500px' }} />
-                    </Box>
-                    {isScoring && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mt: 2 }}>
-                            <CircularProgress size={20} />
-                            <Typography variant="body2" color="text.secondary">Analyzing performance...</Typography>
+            {/* Main Content Area - Sheet Music Focused */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+                <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 2, position: 'relative' }}>
+                    
+                    {/* Countdown Overlay */}
+                    {isCountingDown && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: 'rgba(255, 255, 255, 0.95)',
+                                zIndex: 1000,
+                                borderRadius: 4,
+                            }}
+                        >
+                            <Typography 
+                                variant="h1" 
+                                sx={{ 
+                                    color: 'primary.main', 
+                                    fontWeight: 900, 
+                                    fontSize: '12rem', 
+                                    textShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+                                    animation: 'countdownPulse 1s ease-in-out'
+                                }}
+                            >
+                                {currentCountdown}
+                            </Typography>
                         </Box>
                     )}
-                </Paper>
+
+                    {/* Sheet Music Display - Takes Full Space */}
+                    <Paper 
+                        elevation={0} 
+                        sx={{ 
+                            flex: 1,
+                            overflow: 'auto',
+                            borderRadius: 3,
+                            bgcolor: 'white',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            border: '1px solid rgba(0, 0, 0, 0.06)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative'
+                        }}
+                    >
+                        <Box 
+                            sx={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                p: 4,
+                                display: 'flex', 
+                                flexDirection: 'column',
+                                overflow: 'auto'
+                            }}
+                        >
+                            {!musicXML ? (
+                                <Box sx={{ width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                    <LibraryMusicIcon sx={{ fontSize: 80, color: 'primary.main', mb: 3, opacity: 0.3 }} />
+                                    <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: 'text.primary' }}>
+                                        Select a Song to Begin
+                                    </Typography>
+                                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                                        Choose from your library or upload a new MusicXML file
+                                    </Typography>
+                                    
+                                    {isLoadingSongs ? (
+                                        <CircularProgress />
+                                    ) : (
+                                        <Grid container spacing={2} sx={{ width: '100%', maxWidth: 900 }}>
+                                            {availableSongs.map((song, index) => (
+                                                <Grid item xs={12} sm={6} md={4} key={song.id || index}>
+                                                    <Grow in={true} timeout={(index + 1) * 150}>
+                                                        <Card 
+                                                            elevation={0}
+                                                            sx={{ 
+                                                                borderRadius: 3,
+                                                                border: '1px solid',
+                                                                borderColor: 'divider',
+                                                                transition: 'all 0.2s',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-4px)',
+                                                                    boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                                                                    borderColor: 'primary.main'
+                                                                }
+                                                            }}
+                                                        >
+                                                            <CardActionArea 
+                                                                onClick={() => handleSongRetrieved(song)}
+                                                                sx={{ p: 2.5 }}
+                                                            >
+                                                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+                                                                    <LibraryMusicIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                                                                    <Box sx={{ textAlign: 'center' }}>
+                                                                        <Typography variant="subtitle1" fontWeight="bold" noWrap>
+                                                                            {song.title || "Untitled"}
+                                                                        </Typography>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            {song.artist || "Unknown Artist"}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </Box>
+                                                            </CardActionArea>
+                                                        </Card>
+                                                    </Grow>
+                                                </Grid>
+                                            ))}
+                                            {availableSongs.length === 0 && (
+                                                <Grid item xs={12}>
+                                                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                                                        No songs in your library yet. Upload one to get started!
+                                                    </Typography>
+                                                </Grid>
+                                            )}
+                                        </Grid>
+                                    )}
+                                </Box>
+                            ) : (
+                                <Box sx={{ width: '100%', height: '100%' }}>
+                                    <SheetMusicDisplay
+                                        musicXML={musicXML}
+                                        currentTargetNoteIndex={currentTargetNoteIndex}
+                                        noteStatuses={noteStatuses}
+                                        bpm={tempo}
+                                        isPlaying={isRecording && !isCountingDown}
+                                        onCursorUpdate={handleCursorUpdate}
+                                    />
+                                </Box>
+                            )}
+                        </Box>
+                    </Paper>
+                </Container>
+            </Box>
+
+            {/* Bottom Control Bar */}
+            <RecordingControls
+                playbackUrl={playbackUrl}
+                isScoring={isScoring}
+                isRecording={isRecording}
+                musicXML={musicXML}
+                handleStart={handleStart}
+                handleStop={handleStop}
+                handleReset={handleReset}
+            />
+
+            {/* Completion Message - Floating */}
+            {currentTargetNoteIndex >= songToPlay.length && !isRecording && songToPlay.length > 0 && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 999,
+                        animation: 'fadeInScale 0.5s ease-out'
+                    }}
+                >
+                    <Paper 
+                        elevation={8}
+                        sx={{ 
+                            p: 4, 
+                            background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                            borderRadius: 4, 
+                            color: 'white', 
+                            textAlign: 'center',
+                            minWidth: 400
+                        }}
+                    >
+                        <Typography variant="h3" sx={{ fontWeight: 900, mb: 1 }}>
+                            🎉 Great Job! 🎉
+                        </Typography>
+                        <Typography variant="h6" sx={{ opacity: 0.95 }}>
+                            Performance complete! Check your results below.
+                        </Typography>
+                    </Paper>
+                </Box>
             )}
 
-            {/* Performance Results Dialog */}
+            {/* Analysis Loading Dialog */}
+            <AnalysisDialog open={isScoring} />
+
+            {/* Results Dialog */}
             <Dialog 
                 open={resultsDialogOpen} 
                 onClose={() => setResultsDialogOpen(false)}
@@ -478,15 +565,23 @@ const handleStop = async () => {
                 PaperProps={{
                     sx: {
                         borderRadius: 4,
-                        bgcolor: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(10px)'
+                        boxShadow: '0 24px 64px rgba(0,0,0,0.2)'
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', bgcolor: 'primary.main', color: 'white', py: 3 }}>
-                    <Typography variant="h5" fontWeight="bold">Performance Analysis</Typography>
+                <DialogTitle 
+                    sx={{ 
+                        textAlign: 'center', 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white', 
+                        py: 3
+                    }}
+                >
+                    <Typography variant="h5" fontWeight="bold">
+                        📊 Performance Analysis
+                    </Typography>
                 </DialogTitle>
-                <DialogContent sx={{ mt: 2 }}>
+                <DialogContent sx={{ mt: 3, px: 4 }}>
                     <RecordingScore performanceResults={performanceResults} />
                 </DialogContent>
                 <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
@@ -494,13 +589,58 @@ const handleStop = async () => {
                         onClick={() => setResultsDialogOpen(false)} 
                         variant="contained" 
                         size="large"
-                        sx={{ borderRadius: '50px', px: 4, fontWeight: 600 }}
+                        sx={{ 
+                            borderRadius: 3, 
+                            px: 5, 
+                            py: 1.2,
+                            fontWeight: 700,
+                            textTransform: 'none'
+                        }}
                     >
                         Close
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+
+            {/* Metronome Hint */}
+            <Snackbar
+                open={showMetronomeHint}
+                autoHideDuration={5000}
+                onClose={() => setShowMetronomeHint(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={() => setShowMetronomeHint(false)} 
+                    severity="info" 
+                    variant="filled"
+                    sx={{ borderRadius: 2 }}
+                >
+                    💡 Tip: Use headphones with the metronome for best results!
+                </Alert>
+            </Snackbar>
+
+            <style>
+                {`
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.8; }
+                    }
+                    @keyframes musicWave {
+                        0%, 100% { height: 20%; opacity: 0.5; }
+                        50% { height: 100%; opacity: 1; }
+                    }
+                    @keyframes countdownPulse {
+                        0% { transform: scale(0.8); opacity: 0; }
+                        50% { transform: scale(1.1); }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes fadeInScale {
+                        0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+                        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                    }
+                `}
+            </style>
+        </Box>
     );
 };
 
