@@ -3,96 +3,87 @@ import { useState, useRef, useCallback } from 'react';
 export const useAudioRecorder = () => {
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
-    const streamRef = useRef(null); // Keep track of the stream to stop it
+    const streamRef = useRef(null);
     const [audioBlob, setAudioBlob] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [error, setError] = useState(null);
 
     const startFullRecording = useCallback(async () => {
         setError(null);
-        setAudioBlob(null); // Clear previous blob
-        audioChunksRef.current = []; // Clear previous chunks
+        setAudioBlob(null);
+        audioChunksRef.current = [];
 
         try {
-            console.log('🎤 (Recorder Hook) Requesting microphone access...');
+            // Ask for permission and wait for stream
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    channelCount: 1,
-                    sampleRate: 22050, // Match your analysis sample rate
-                    echoCancellation: false,
+                audio: { 
+                    channelCount: 1, 
+                    sampleRate: 44100, // Better compatibility than 22050
+                    echoCancellation: false, // Music mode settings
                     noiseSuppression: false,
-                    autoGainControl: false
+                    autoGainControl: false 
                 } 
             });
-            streamRef.current = stream; // Store the stream
-            console.log('✅ (Recorder Hook) Microphone access granted');
+            streamRef.current = stream;
 
-            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            // Use the stream's native mimeType if possible, fallback to webm
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+                ? 'audio/webm;codecs=opus' 
+                : 'audio/webm';
+
+            const recorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = recorder;
 
             recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
+                if (event.data && event.data.size > 0) {
                     audioChunksRef.current.push(event.data);
-                     console.log('📦 (Recorder Hook) Audio chunk received:', event.data.size, 'bytes');
                 }
             };
 
-            recorder.onstop = () => {
-                console.log('🎵 (Recorder Hook) MediaRecorder stopped, creating blob...');
-                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                console.log('✅ (Recorder Hook) Audio blob created:', blob.size, 'bytes');
-                setAudioBlob(blob); // Make the final blob available
-                setIsRecording(false);
-                // Stop the tracks after the blob is created
-                if (streamRef.current) {
-                     streamRef.current.getTracks().forEach(track => track.stop());
-                     streamRef.current = null;
-                     console.log('🎤 (Recorder Hook) Microphone stream stopped.');
-                }
-            };
-            
-             recorder.onerror = (event) => {
-                 console.error('❌ (Recorder Hook) MediaRecorder Error:', event.error);
-                 setError(`MediaRecorder error: ${event.error.name}`);
-                 setIsRecording(false);
-                 // Also stop tracks on error
-                 if (streamRef.current) {
-                     streamRef.current.getTracks().forEach(track => track.stop());
-                     streamRef.current = null;
-                 }
-             };
-
-            recorder.start();
+            recorder.start(); 
             setIsRecording(true);
-            console.log('🎤 (Recorder Hook) MediaRecorder started');
+            console.log('🎤 Recorder Started');
 
         } catch (err) {
-            console.error('❌ (Recorder Hook) Failed to start recording:', err);
-            setError(`Failed to get microphone: ${err.message}`);
-            setIsRecording(false);
+            console.error('❌ Recorder Error:', err);
+            setError(err.message);
         }
-    }, []); // useCallback ensures this function has a stable identity
+    }, []);
 
+    // [CRITICAL CHANGE] Returns a Promise that resolves with the Blob
     const stopFullRecording = useCallback(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            console.log('🛑 (Recorder Hook) Stopping MediaRecorder...');
-            mediaRecorderRef.current.stop(); // This triggers the onstop handler
-            // Stream tracks are stopped in the onstop handler itself
-        } else {
-             console.warn('(Recorder Hook) Stop called but not recording.');
-             // Ensure tracks are stopped if something went wrong
-             if (streamRef.current) {
-                 streamRef.current.getTracks().forEach(track => track.stop());
-                 streamRef.current = null;
-             }
-             setIsRecording(false); // Ensure state is consistent
-        }
+        return new Promise((resolve) => {
+            const recorder = mediaRecorderRef.current;
+            
+            if (!recorder || recorder.state !== 'recording') {
+                resolve(null);
+                return;
+            }
+
+            // We define the logic to run ONCE the recorder effectively stops
+            recorder.onstop = () => {
+                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                setAudioBlob(blob);
+                setIsRecording(false);
+                
+                // Cleanup Microphone Stream
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach(track => track.stop());
+                    streamRef.current = null;
+                }
+                
+                console.log('✅ Recorder Stopped. Blob Size:', blob.size);
+                resolve(blob); // Resolve the promise with the data
+            };
+
+            recorder.stop();
+        });
     }, []);
 
     return { 
         isFullRecording: isRecording, 
         audioBlob, 
-        recorderError: error, // Expose potential errors
+        recorderError: error, 
         startFullRecording, 
         stopFullRecording 
     };

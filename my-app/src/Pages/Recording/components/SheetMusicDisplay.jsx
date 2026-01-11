@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 import { Box, Typography, CircularProgress, Alert } from '@mui/material';
 
-const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
+const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex, bpm, isPlaying, onCursorUpdate }) => {
     const osmdContainerRef = useRef(null);
     const osmdRef = useRef(null);
     const cursorRef = useRef(null);
@@ -124,6 +124,7 @@ const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
 
     // Effect 3: Move Cursor when index changes
     useEffect(() => {
+        let timerId;
         if (!cursorRef.current || !osmdRendered || currentTargetNoteIndex < 0) {
             console.log('Cursor movement skipped:', {
                 hasCursor: !!cursorRef.current,
@@ -170,10 +171,36 @@ const SheetMusicDisplay = ({ musicXML, currentTargetNoteIndex }) => {
             }
             
             console.log('=== Cursor movement complete ===\n');
+
+            // Auto-advance cursor based on BPM
+            if (isPlaying && onCursorUpdate && cursorRef.current.iterator && !cursorRef.current.iterator.EndReached) {
+                const iterator = cursorRef.current.iterator;
+                let duration = 0;
+
+                if (iterator.CurrentVoiceEntries && iterator.CurrentVoiceEntries.length > 0) {
+                    const voiceEntry = iterator.CurrentVoiceEntries[0];
+                    if (voiceEntry.Notes && voiceEntry.Notes.length > 0) {
+                        // OSMD RealValue: Whole = 1.0, Quarter = 0.25
+                        const noteLength = voiceEntry.Notes[0].Length.RealValue;
+                        // Convert to beats (Quarter notes)
+                        const beats = noteLength * 4;
+                        // Calculate seconds: beats * (60 / bpm)
+                        const safeBpm = bpm || 120;
+                        duration = beats * (60 / safeBpm);
+                    }
+                }
+
+                if (duration > 0) {
+                    timerId = setTimeout(() => {
+                        onCursorUpdate(currentTargetNoteIndex + 1);
+                    }, duration * 1000);
+                }
+            }
         } catch (e) {
             console.error("Error moving cursor:", e);
         }
-    }, [currentTargetNoteIndex, osmdRendered]);
+        return () => clearTimeout(timerId);
+    }, [currentTargetNoteIndex, osmdRendered, isPlaying, bpm, onCursorUpdate]);
 
     return (
         <Box sx={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>

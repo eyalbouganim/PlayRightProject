@@ -8,6 +8,7 @@ const auth = require('./routes/auth'); // Import auth routes
 const users = require('./routes/user'); // Import user routes
 const config = require('./config/config');
 const songRoutes = require('./routes/songRoutes');
+const a2saRoutes = require('./routes/a2saRoutes');
 const audioController = require('./controllers/audioController');
 const { protect } = require('./middleware/authMiddleware'); // Import the protect middleware
 const logger = require('./utils/logger');
@@ -42,6 +43,7 @@ app.use('/api/performances', protect, performances); // Protect the performances
 app.use('/api/users', protect, users); // Protect all user-related routes
 app.use('/api/auth', auth); // Use auth routes
 app.use('/api/songs', protect, songRoutes); // Add this line to register the song routes
+app.use('/api/a2sa', protect, a2saRoutes);
 
 // Define server and wss here so they are accessible by the shutdown function
 let server;

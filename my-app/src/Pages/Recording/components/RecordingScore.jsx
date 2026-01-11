@@ -1,73 +1,168 @@
-import React, { useState } from 'react';
-import { Box, Typography, Divider, Grid, Paper, Stack, Button, Collapse } from '@mui/material';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import PerformanceTimeline from './PerformanceTimeline';
+// src/Pages/Recording/components/RecordingScore.jsx
+import React, { useEffect, useRef } from 'react';
+import { Box, Typography } from '@mui/material';
 
 const RecordingScore = ({ performanceResults }) => {
-    const [showTimeline, setShowTimeline] = useState(false);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
 
-    if (!performanceResults) return null;
+  // Handle both the new object format and potential legacy array format
+  const { alignment, grade, breakdown } = performanceResults?.alignment ? performanceResults : { alignment: performanceResults };
+  const notes = alignment || [];
 
-    return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, py: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-                <Typography variant="h2" color="primary" sx={{ fontWeight: 800 }}>
-                    {performanceResults.overall_score}%
-                </Typography>
-                <Typography variant="subtitle1" color="text.secondary">
-                    Overall Score
-                </Typography>
-            </Box>
-            
-            <Divider />
-            
-            <Grid container spacing={2} sx={{ textAlign: 'center' }}>
-                <Grid item xs={6}>
-                    <Typography variant="h5" color="text.primary" fontWeight="bold">{performanceResults.pitch_accuracy}%</Typography>
-                    <Typography variant="body2" color="text.secondary">Pitch Accuracy</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                    <Typography variant="h5" color="text.primary" fontWeight="bold">{performanceResults.timing_accuracy}%</Typography>
-                    <Typography variant="body2" color="text.secondary">Timing Accuracy</Typography>
-                </Grid>
-            </Grid>
+  useEffect(() => {
+    if (!notes || notes.length === 0 || !canvasRef.current || !containerRef.current) return;
 
-            <Paper variant="outlined" sx={{ p: 3, bgcolor: 'background.default', borderRadius: 2 }}>
-                <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Total Notes:</Typography>
-                        <Typography variant="body2" fontWeight="bold">{performanceResults.total_expected}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Correct Notes:</Typography>
-                        <Typography variant="body2" fontWeight="bold" color="success.main">{performanceResults.correct_notes}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">On-Time Notes:</Typography>
-                        <Typography variant="body2" fontWeight="bold" color="info.main">{performanceResults.on_time_notes}</Typography>
-                    </Box>
-                </Stack>
-            </Paper>
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // --- VISUALIZATION CONFIG ---
+    const PIXELS_PER_SECOND = 120; // Horizontal Zoom (Bigger)
+    const NOTE_HEIGHT = 20;        // Vertical Key Height (Bigger)
+    
+    // Determine Range dynamically based on the notes played
+    const pitches = notes.map(n => n.pitch);
+    const minPitch = Math.min(...pitches) - 2; // Add padding
+    const maxPitch = Math.max(...pitches) + 2;
+    const pitchRange = maxPitch - minPitch;
 
-            {/* Timeline Toggle */}
-            {performanceResults.details && performanceResults.details.length > 0 && (
-                <Box sx={{ width: '100%' }}>
-                    <Button 
-                        fullWidth 
-                        variant="outlined" 
-                        onClick={() => setShowTimeline(!showTimeline)}
-                        startIcon={<TimelineIcon />}
-                        sx={{ borderRadius: 2, py: 1 }}
-                    >
-                        {showTimeline ? 'Hide Performance Timeline' : 'View Performance Timeline'}
-                    </Button>
-                    <Collapse in={showTimeline}>
-                        <PerformanceTimeline details={performanceResults.details} />
-                    </Collapse>
+    const maxTime = Math.max(...notes.map(n => n.end)) + 1;
+    
+    // Set Dimensions
+    const width = maxTime * PIXELS_PER_SECOND;
+    const height = pitchRange * NOTE_HEIGHT;
+    
+    // Handle High DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+
+    // 1. Draw Background (Dark Theme)
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(0, 0, width, height);
+    
+    // 2. Draw Grid Lines (Rows)
+    ctx.strokeStyle = '#34495e';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= pitchRange; i++) {
+      const y = i * NOTE_HEIGHT;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // 3. Draw Notes
+    notes.forEach(note => {
+      // Invert Y axis: Higher pitch should be higher up (Lower Y value)
+      const pitchOffset = maxPitch - note.pitch; 
+      
+      const x = note.start * PIXELS_PER_SECOND;
+      const y = pitchOffset * NOTE_HEIGHT;
+      const w = Math.max((note.end - note.start) * PIXELS_PER_SECOND, 5); // Min width 5px
+      const h = NOTE_HEIGHT - 1; // Gap between keys
+
+      // --- UPDATED COLOR LOGIC (Backend Driven) ---
+      let color = '#e74c3c';       // Red (Default/Missed)
+      let strokeColor = '#c0392b';
+
+      // The frontend now relies on the 'quality' tag calculated by the backend
+      // 'perfect', 'ok', 'bad', or 'missed'
+      if (note.quality === 'perfect') {
+        color = '#2ecc71';         // Green (Perfect)
+        strokeColor = '#27ae60';
+      } else if (note.quality === 'ok') {
+        color = '#f1c40f';         // Yellow (Okay)
+        strokeColor = '#f39c12';
+      } else if (note.quality === 'bad') {
+        color = '#e67e22';         // Orange (Sloppy/Bad Timing)
+        strokeColor = '#d35400';
+      }
+      
+      // Safety check: if is_played is false, force Red regardless of quality tag
+      if (!note.is_played) {
+        color = '#e74c3c'; 
+        strokeColor = '#c0392b';
+      }
+
+      if (note.quality === 'ok' || note.quality === 'bad') {
+        const text = note.timing_status === 'early' ? 'EARLY' : 'LATE';
+      }
+
+      // Draw Note Bar
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+      
+      // Draw Border
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+
+      // --- UPDATED LABEL LOGIC ---
+      if (w > 30) { // Only draw text if the note is wide enough
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        
+        let label = '';
+
+        if (!note.is_played) {
+            label = 'MISS';
+        } else if (note.quality === 'perfect') {
+            // For perfect notes, just show the precise timing
+            label = `${Math.round(Math.abs(note.timing_deviation) * 1000)}ms`;
+        } else {
+            // For 'ok' or 'bad', show the Feedback (EARLY/LATE)
+            // We use the status we added in the backend
+            const direction = note.timing_status === 'early' ? 'EARLY' : 'LATE';
+            label = direction;
+        }
+
+        // Draw the text centered vertically in the note bar
+        ctx.fillText(label, x + 4, y + 13);
+      }
+    });
+
+  }, [notes]);
+
+  if (!notes || notes.length === 0) return <Typography>No alignment data available.</Typography>;
+
+  return (
+    <Box sx={{ width: '100%' }}>
+        {/* Score Display */}
+        {grade !== undefined && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 3, p: 2, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 3 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h3" color="primary.main" fontWeight="800">{grade}%</Typography>
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1 }}>OVERALL</Typography>
                 </Box>
-            )}
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="text.primary" fontWeight="700">{breakdown?.pitch}%</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold">PITCH</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="text.primary" fontWeight="700">{breakdown?.timing}%</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold">TIMING</Typography>
+                </Box>
+            </Box>
+        )}
+
+        <Box sx={{ width: '100%', overflowX: 'auto', bgcolor: '#2c3e50', borderRadius: 2, p: 1, border: '1px solid #ddd' }}>
+        <div ref={containerRef}>
+            <canvas ref={canvasRef} />
+        </div>
+        {/* UPDATED LEGEND to match dynamic grading */}
+        <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: 'center' }}>
+            <Typography variant="caption" sx={{ color: '#2ecc71' }}>■ Perfect</Typography>
+            <Typography variant="caption" sx={{ color: '#f1c40f' }}>■ Okay</Typography>
+            <Typography variant="caption" sx={{ color: '#e67e22' }}>■ Imprecise</Typography>
+            <Typography variant="caption" sx={{ color: '#e74c3c' }}>■ Missed</Typography>
         </Box>
-    );
+    </Box>
+    </Box>
+  );
 };
 
 export default RecordingScore;
