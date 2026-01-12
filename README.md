@@ -107,18 +107,26 @@ Whether you're learning scales, practicing challenging pieces, or preparing for 
 
 ### Home Dashboard
 *[Screenshot placeholder: Main dashboard with navigation and welcome screen]*
+<img width="1902" height="907" alt="Home" src="https://github.com/user-attachments/assets/df484b44-92da-4513-8b5f-497149e00fd6" />
+
 
 ### Performance Mode
 *[Screenshot placeholder: Recording interface with sheet music display]*
+<img width="1897" height="906" alt="PerformanceMode" src="https://github.com/user-attachments/assets/71d471b2-3e7a-4b61-aebb-237078710a76" />
+
 
 ### Analysis Results
 *[Screenshot placeholder: Performance analysis dialog with note graph and AI feedback]*
 
 ### Statistics Dashboard
 *[Screenshot placeholder: Performance history table with filters and metrics]*
+<img width="1900" height="906" alt="Statistics" src="https://github.com/user-attachments/assets/b529cf96-40bd-4713-b15c-d3e59176d40a" />
+
 
 ### Learn Mode
 *[Screenshot placeholder: Practice interface without grading]*
+<img width="1896" height="902" alt="LearnMode" src="https://github.com/user-attachments/assets/6f2ec6d3-fcee-4946-8385-8336d64e1a6a" />
+
 
 ---
 
