@@ -106,25 +106,30 @@ Whether you're learning scales, practicing challenging pieces, or preparing for 
 <!-- Add your screenshots here -->
 
 ### Home Dashboard
-*[Screenshot placeholder: Main dashboard with navigation and welcome screen]*
+
 <img width="1902" height="907" alt="Home" src="https://github.com/user-attachments/assets/df484b44-92da-4513-8b5f-497149e00fd6" />
 
 
 ### Performance Mode
-*[Screenshot placeholder: Recording interface with sheet music display]*
-<img width="1897" height="906" alt="PerformanceMode" src="https://github.com/user-attachments/assets/71d471b2-3e7a-4b61-aebb-237078710a76" />
+
+<img width="1897" height="906" alt="PlayRightPerformance" src="https://github.com/user-attachments/assets/5e8a1d23-1f1c-4fba-bf31-0e651eb881d3" />
 
 
 ### Analysis Results
-*[Screenshot placeholder: Performance analysis dialog with note graph and AI feedback]*
+
+<img width="1908" height="905" alt="PlayRightAnalysis" src="https://github.com/user-attachments/assets/1b5b4f48-9fda-40dd-9a96-f79accd98033" />
+
+
+<img width="1188" height="846" alt="PlayRightAIFeedback" src="https://github.com/user-attachments/assets/3dd69ebe-a474-48bd-a5d6-f9e5506826a4" />
+
 
 ### Statistics Dashboard
-*[Screenshot placeholder: Performance history table with filters and metrics]*
+
 <img width="1900" height="906" alt="Statistics" src="https://github.com/user-attachments/assets/b529cf96-40bd-4713-b15c-d3e59176d40a" />
 
 
 ### Learn Mode
-*[Screenshot placeholder: Practice interface without grading]*
+
 <img width="1896" height="902" alt="LearnMode" src="https://github.com/user-attachments/assets/6f2ec6d3-fcee-4946-8385-8336d64e1a6a" />
 
 
