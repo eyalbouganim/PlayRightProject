@@ -5,11 +5,6 @@ import {
     Box,
     Typography,
     Paper,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
     CircularProgress,
     Grid,
     Card,
@@ -27,7 +22,6 @@ import RecordingHeader from './components/RecordingHeader';
 import RecordingControls from './components/RecordingControls';
 import AnalysisDialog from './components/AnalysisDialog';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
-import RecordingScore from './components/RecordingScore';
 
 const Recording = () => {
     const navigate = useNavigate();
@@ -632,54 +626,13 @@ const Recording = () => {
                 </Box>
             )}
 
-            {/* Analysis Loading Dialog */}
-            <AnalysisDialog open={isScoring} />
-
-            {/* Results Dialog */}
-            <Dialog 
-                open={resultsDialogOpen} 
+            {/* Analysis Dialog - Now includes both loading and results */}
+            <AnalysisDialog
+                open={isScoring || resultsDialogOpen}
                 onClose={() => setResultsDialogOpen(false)}
-                maxWidth="lg"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: 4,
-                        boxShadow: '0 24px 64px rgba(0,0,0,0.2)'
-                    }
-                }}
-            >
-                <DialogTitle 
-                    sx={{ 
-                        textAlign: 'center', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white', 
-                        py: 3
-                    }}
-                >
-                    <Typography variant="h5" fontWeight="bold">
-                        📊 Performance Analysis
-                    </Typography>
-                </DialogTitle>
-                <DialogContent sx={{ mt: 3, px: 4 }}>
-                    <RecordingScore performanceResults={performanceResults} />
-                </DialogContent>
-                <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
-                    <Button 
-                        onClick={() => setResultsDialogOpen(false)} 
-                        variant="contained" 
-                        size="large"
-                        sx={{ 
-                            borderRadius: 3, 
-                            px: 5, 
-                            py: 1.2,
-                            fontWeight: 700,
-                            textTransform: 'none'
-                        }}
-                    >
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                performanceResults={performanceResults}
+                performanceId={performanceResults?.performanceId}
+            />
 
             {/* Metronome Hint */}
             <Snackbar

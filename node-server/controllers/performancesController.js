@@ -211,9 +211,9 @@ const getUserRecentPerformances = async (req, res) => {
 const getPerformanceFeedback = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id; 
+        const userId = req.user.id;
 
-        const performance = await Performance.findOne({ 
+        const performance = await Performance.findOne({
             where: { id: id, user_id: userId },
             include: [{
                 model: Song,
@@ -226,18 +226,66 @@ const getPerformanceFeedback = async (req, res) => {
             return res.status(404).json({ error: 'Performance not found' });
         }
 
-        // IMPROVED CONTEXT: Handle missing/null data gracefully
+        // ENHANCED CONTEXT: Analyze detected_notes for specific issues
+        const detectedNotes = performance.detected_notes || [];
+
+        // Count different types of notes
+        const missedNotes = detectedNotes.filter(n => !n.is_played).length;
+        const perfectNotes = detectedNotes.filter(n => n.quality === 'perfect').length;
+        const okNotes = detectedNotes.filter(n => n.quality === 'ok').length;
+        const badNotes = detectedNotes.filter(n => n.quality === 'bad').length;
+
+        // Analyze timing issues
+        const earlyNotes = detectedNotes.filter(n => n.timing_status === 'early').length;
+        const lateNotes = detectedNotes.filter(n => n.timing_status === 'late').length;
+
+        // Calculate percentages
+        const totalNotes = detectedNotes.length;
+        const missedPercentage = totalNotes > 0 ? Math.round((missedNotes / totalNotes) * 100) : 0;
+        const perfectPercentage = totalNotes > 0 ? Math.round((perfectNotes / totalNotes) * 100) : 0;
+
+        // Build detailed analysis string
+        let detailedAnalysis = [];
+
+        if (missedNotes > 0) {
+            detailedAnalysis.push(`${missedNotes} note(s) were missed (${missedPercentage}% of total)`);
+        }
+
+        if (earlyNotes > 0 || lateNotes > 0) {
+            const timingIssues = [];
+            if (earlyNotes > 0) timingIssues.push(`${earlyNotes} played too early`);
+            if (lateNotes > 0) timingIssues.push(`${lateNotes} played too late`);
+            detailedAnalysis.push(`Timing issues: ${timingIssues.join(', ')}`);
+        }
+
+        if (perfectNotes > 0) {
+            detailedAnalysis.push(`${perfectNotes} note(s) were played perfectly (${perfectPercentage}%)`);
+        }
+
+        if (badNotes > 0) {
+            detailedAnalysis.push(`${badNotes} note(s) had significant timing problems`);
+        }
+
+        // IMPROVED CONTEXT with detailed note analysis
         const analysisContext = {
-            songTitle: performance.song ? performance.song.title : "the song", // Make sure to include Song model if needed
+            songTitle: performance.song ? performance.song.title : "the song",
             score: performance.overall_score || 0,
             pitch: performance.pitch_accuracy || 0,
             timing: performance.timing_accuracy || 0,
-            // If details are null, send a placeholder so AI doesn't complain
+            totalNotes: totalNotes,
+            missedNotes: missedNotes,
+            perfectNotes: perfectNotes,
+            earlyNotes: earlyNotes,
+            lateNotes: lateNotes,
+            badTimingNotes: badNotes,
+            // Include detailed breakdown for AI to understand specific issues
+            detailedAnalysis: detailedAnalysis.join('. '),
+            // Legacy details field
             details: performance.analysis_details ? performance.analysis_details : "General practice session"
         };
 
         const feedback = await aiFeedbackService.generatePerformanceFeedback(analysisContext);
-        
+
         res.json({ feedback });
 
     } catch (error) {
