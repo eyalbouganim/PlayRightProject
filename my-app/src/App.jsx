@@ -19,6 +19,7 @@ import About from "./Pages/About/about.jsx";
 import Settings from "./Pages/Settings/settings.jsx";
 import Help from "./Pages/Help/help.jsx";
 import MusicLibrary from "./Pages/MusicLibrary/musiclibrary.jsx";
+import Learn from "./Pages/Learn/learn.jsx";
 
 // Create a custom theme instance to define the application's color scheme.
 const theme = createTheme({
@@ -138,14 +139,15 @@ function App() {
               <Route path="/home" element={<Home />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/recording" element={<Recording />} />
+              <Route path="/learn" element={<Learn />} />
               <Route path="/statistics" element={<Statistics />} />
-              
+
               {/* NEW ROUTES */}
               <Route path="/about" element={<About />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/help" element={<Help />} />
               <Route path="/library" element={<MusicLibrary />} />
-              
+
               <Route path="/" element={<Navigate to="/home" replace />} />
             </Route>
           </Route>
