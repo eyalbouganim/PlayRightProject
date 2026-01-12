@@ -31,6 +31,16 @@ Song.init({
     musicXml: {
         type: DataTypes.TEXT, // To store the MusicXML content
         allowNull: true // A song might exist without sheet music initially
+    },
+    performance: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true // Default to performance mode for backward compatibility
+    },
+    default: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false // Default to private song (not a system-provided song)
     }
 }, {
     sequelize,                 // Pass the connection instance

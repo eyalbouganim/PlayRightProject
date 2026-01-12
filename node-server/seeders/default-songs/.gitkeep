@@ -1,0 +1,2 @@
+# This file ensures the default-songs directory structure is tracked by git
+# Add your .musicxml files here - they can be gitignored if they're large

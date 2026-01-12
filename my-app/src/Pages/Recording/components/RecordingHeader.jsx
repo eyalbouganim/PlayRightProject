@@ -54,7 +54,7 @@ const RecordingHeader = ({
                     {/* Left: Title & Status */}
                     <Stack direction="row" spacing={2} alignItems="center">
                         <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                            PlayRight Studio
+                            Performance Mode
                         </Typography>
                         <Chip 
                             icon={isRecording ? <FiberManualRecordIcon /> : <CheckCircleIcon />}

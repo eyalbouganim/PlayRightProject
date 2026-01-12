@@ -2,7 +2,7 @@ const Song = require('../models/songModel');
 const logger = require('../utils/logger');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { Op } = require('sequelize');
 
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
@@ -36,11 +36,18 @@ const uploadSong = async (req, res) => {
             title = path.parse(req.file.originalname).name;
         }
 
+        // Determine if it's for performance mode (default) or learning mode
+        const isPerformance = req.body.performance !== undefined
+            ? req.body.performance === 'true' || req.body.performance === true
+            : true; // Default to performance mode
+
         // Create a new song record in the database
         const newSong = await Song.create({
             title: title,
             user_id: userId,
             musicXml: musicXmlContent,
+            performance: isPerformance,
+            default: false, // User-uploaded songs are never default
             // artist can be added later if needed
         });
 
@@ -57,17 +64,37 @@ const uploadSong = async (req, res) => {
 };
 
 /**
- * Gets all songs uploaded by the current user.
+ * Gets all songs accessible by the current user.
+ * Returns default songs (system-provided) and user's own songs.
+ * Supports filtering by mode: ?mode=performance or ?mode=learn
  * Returns a lightweight list without the full MusicXML content.
  */
 const getUserSongs = async (req, res) => {
     try {
         const userId = req.user.id;
+        const mode = req.query.mode; // Optional: 'performance' or 'learn'
+
+        // Build the where clause
+        const whereClause = {
+            [Op.or]: [
+                { default: true }, // Include all default songs
+                { user_id: userId } // Include user's own songs
+            ]
+        };
+
+        // If mode filter is specified, add it to the where clause
+        if (mode === 'performance') {
+            whereClause.performance = true;
+        } else if (mode === 'learn') {
+            whereClause.performance = false;
+        }
+
         const songs = await Song.findAll({
-            where: { user_id: userId },
-            attributes: ['id', 'title', 'artist', 'createdAt'], // Don't send the full XML
-            order: [['createdAt', 'DESC']]
+            where: whereClause,
+            attributes: ['id', 'title', 'artist', 'performance', 'default', 'createdAt'],
+            order: [['default', 'DESC'], ['createdAt', 'DESC']] // Default songs first, then by date
         });
+
         res.status(200).json(songs);
     } catch (error) {
         logger.error('Error fetching user songs:', error);
@@ -76,7 +103,8 @@ const getUserSongs = async (req, res) => {
 };
 
 /**
- * Gets a single song by its ID, ensuring it belongs to the current user.
+ * Gets a single song by its ID.
+ * Returns default songs (accessible to all) or user's private songs.
  * Returns the full song object including MusicXML.
  */
 const getSongById = async (req, res) => {
@@ -84,10 +112,14 @@ const getSongById = async (req, res) => {
         const userId = req.user.id;
         const songId = req.params.id;
 
+        // Allow access to default songs OR user's own songs
         const song = await Song.findOne({
             where: {
                 id: songId,
-                user_id: userId
+                [Op.or]: [
+                    { default: true }, // Default songs accessible to all users
+                    { user_id: userId } // User's private songs
+                ]
             }
         });
 
