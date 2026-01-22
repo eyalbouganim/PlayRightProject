@@ -38,9 +38,17 @@ try:
                 m.rightBarline = None
     except: pass
 
-    # 4. Extract the Piano Part (Both Hands)
+    # 4. Extract piano parts (right hand + left hand, max 2 parts)
     if hasattr(s, 'parts') and len(s.parts) > 0:
-        s = s.parts[0]
+        if len(s.parts) == 1:
+            # Single part - use it directly (contains both hands)
+            s = s.parts[0]
+        elif len(s.parts) >= 2:
+            # Multiple parts - combine first two (right hand + left hand)
+            combined = music21.stream.Score()
+            combined.insert(0, s.parts[0])  # Right hand
+            combined.insert(0, s.parts[1])  # Left hand
+            s = combined
 
     # 5. Write to MIDI
     print(f"Writing MIDI to: {r'${midiPath}'}")

@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, 
-    Container, 
-    Typography, 
-    Card, 
-    CardMedia, 
-    CardContent, 
-    CardActions, 
-    Button, 
-    Chip, 
-    TextField, 
-    InputAdornment,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem
+import {
+    Box,
+    Container,
+    Typography,
+    Card,
+    CardMedia,
+    CardContent,
+    CardActions,
+    Button,
+    Chip,
+    TextField,
+    InputAdornment
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -26,7 +22,6 @@ const DEFAULT_IMAGE = "https://waryhub.com/files/preview/960x960/11749650502uvhm
 const MusicLibrary = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
-    const [difficulty, setDifficulty] = useState("All");
     const [songs, setSongs] = useState([]);
 
     useEffect(() => {
@@ -54,10 +49,11 @@ const MusicLibrary = () => {
     };
 
     const filteredSongs = songs.filter(song => {
-        const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              song.composer.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDifficulty = difficulty === "All" || song.difficulty === difficulty;
-        return matchesSearch && matchesDifficulty;
+        if (!searchTerm.trim()) return true;
+        const search = searchTerm.toLowerCase();
+        const title = (song.title || '').toLowerCase();
+        const composer = (song.composer || '').toLowerCase();
+        return title.includes(search) || composer.includes(search);
     });
 
     const getDifficultyColor = (difficulty) => {
@@ -81,14 +77,11 @@ const MusicLibrary = () => {
                         It's up to you to add more songs to the library!
                     </Typography>
                     
-                    <Box sx={{ 
-                        display: 'flex', 
-                        gap: 2, 
-                        justifyContent: 'center', 
-                        maxWidth: '800px', 
-                        mx: 'auto',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: 'stretch'
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        maxWidth: '500px',
+                        mx: 'auto'
                     }}>
                         <TextField
                             fullWidth
@@ -96,8 +89,8 @@ const MusicLibrary = () => {
                             placeholder="Search by title or composer..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            sx={{ 
-                                bgcolor: 'rgba(255, 255, 255, 0.8)', 
+                            sx={{
+                                bgcolor: 'rgba(255, 255, 255, 0.8)',
                                 backdropFilter: 'blur(10px)',
                                 borderRadius: 2,
                                 '& .MuiOutlinedInput-root': { borderRadius: 2 }
@@ -110,25 +103,16 @@ const MusicLibrary = () => {
                                 ),
                             }}
                         />
-                        <FormControl sx={{ minWidth: 200, bgcolor: 'rgba(255, 255, 255, 0.8)', borderRadius: 2 }}>
-                            <InputLabel id="difficulty-select-label">Difficulty</InputLabel>
-                            <Select
-                                labelId="difficulty-select-label"
-                                id="difficulty-select"
-                                value={difficulty}
-                                label="Difficulty"
-                                onChange={(e) => setDifficulty(e.target.value)}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                <MenuItem value="All">All Levels</MenuItem>
-                                <MenuItem value="Easy">Easy</MenuItem>
-                                <MenuItem value="Medium">Medium</MenuItem>
-                                <MenuItem value="Hard">Hard</MenuItem>
-                            </Select>
-                        </FormControl>
                     </Box>
                 </Box>
 
+                {filteredSongs.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <Typography variant="h6" color="text.secondary">
+                            {searchTerm ? `No songs found for "${searchTerm}"` : 'No songs available'}
+                        </Typography>
+                    </Box>
+                ) : (
                 <Box sx={{
                     display: 'grid',
                     gridTemplateColumns: {
@@ -200,6 +184,7 @@ const MusicLibrary = () => {
                             </Card>
                     ))}
                 </Box>
+                )}
             </Container>
         </Box>
     );
