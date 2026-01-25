@@ -66,9 +66,15 @@ public:
 
 	vector<double> pitchDiffProb_;
 
-	// Learned parameters (with safe defaults matching original hardcoded values)
-	double learned_timing_sigma_ = 0.07;
-	double learned_timing_mu_ = 0.0;
+	// GMM components for timing model (learned from train_params.py)
+	// Each component has: mean, std, weight
+	static const int GMM_MAX_COMPONENTS = 3;
+	int gmm_n_components_ = 1;  // Default: single Gaussian (fallback)
+	double gmm_means_[GMM_MAX_COMPONENTS] = {0.0, 0.0, 0.0};
+	double gmm_stds_[GMM_MAX_COMPONENTS] = {0.07, 0.07, 0.07};  // Default 70ms
+	double gmm_weights_[GMM_MAX_COMPONENTS] = {1.0, 0.0, 0.0};  // Default: all weight on first
+
+	// Pitch probabilities (learned)
 	double learned_pitch_0_ = 0.8996;     // Correct pitch
 	double learned_pitch_1_ = 0.0201;     // +1 semitone
 	double learned_pitch_m1_ = 0.0201;    // -1 semitone
@@ -76,10 +82,28 @@ public:
 	double learned_pitch_m12_ = 0.0100;   // -1 octave
 
 	/**
+	 * Compute Gaussian probability density
+	 */
+	double gaussianPdf(double x, double mean, double std) {
+		double diff = x - mean;
+		return exp(-0.5 * (diff * diff) / (std * std));
+	}
+
+	/**
+	 * Compute GMM probability: weighted sum of Gaussian components
+	 * This replaces the single-Gaussian timing probability
+	 */
+	double gmmTimingProb(double deviation) {
+		double prob = 0.0;
+		for (int i = 0; i < gmm_n_components_; i++) {
+			prob += gmm_weights_[i] * gaussianPdf(deviation, gmm_means_[i], gmm_stds_[i]);
+		}
+		return prob;
+	}
+
+	/**
 	 * Load learned parameters from config file.
-	 * Only loads 7 parameters matching the original algorithm structure:
-	 * - timing_sigma, timing_mu
-	 * - pitch_prob_0, pitch_prob_1, pitch_prob_-1, pitch_prob_12, pitch_prob_-12
+	 * Loads GMM components (mean, std, weight) and pitch probabilities.
 	 */
 	void loadLearnedParams(const string& hmmPath) {
 		string configPath = "learned_params.config";
@@ -100,11 +124,31 @@ public:
 			string key = line.substr(0, eq);
 			double val = atof(line.substr(eq + 1).c_str());
 
-			if (key == "timing_sigma" && val > 0.03 && val < 0.15) {
-				learned_timing_sigma_ = val;
-			} else if (key == "timing_mu" && val > -0.1 && val < 0.1) {
-				learned_timing_mu_ = val;
-			} else if (key == "pitch_prob_0") {
+			// GMM parameters
+			if (key == "gmm_n_components") {
+				gmm_n_components_ = (int)val;
+				if (gmm_n_components_ > GMM_MAX_COMPONENTS) gmm_n_components_ = GMM_MAX_COMPONENTS;
+			} else if (key == "gmm_0_mean") {
+				gmm_means_[0] = val;
+			} else if (key == "gmm_0_std") {
+				gmm_stds_[0] = val;
+			} else if (key == "gmm_0_weight") {
+				gmm_weights_[0] = val;
+			} else if (key == "gmm_1_mean") {
+				gmm_means_[1] = val;
+			} else if (key == "gmm_1_std") {
+				gmm_stds_[1] = val;
+			} else if (key == "gmm_1_weight") {
+				gmm_weights_[1] = val;
+			} else if (key == "gmm_2_mean") {
+				gmm_means_[2] = val;
+			} else if (key == "gmm_2_std") {
+				gmm_stds_[2] = val;
+			} else if (key == "gmm_2_weight") {
+				gmm_weights_[2] = val;
+			}
+			// Pitch probabilities
+			else if (key == "pitch_prob_0") {
 				learned_pitch_0_ = val;
 			} else if (key == "pitch_prob_1") {
 				learned_pitch_1_ = val;
@@ -117,8 +161,12 @@ public:
 			}
 		}
 		ifs.close();
-		cout << "Loaded learned params: sigma=" << learned_timing_sigma_
-		     << ", pitch_0=" << learned_pitch_0_ << endl;
+
+		cout << "Loaded GMM timing model (" << gmm_n_components_ << " components):" << endl;
+		for (int i = 0; i < gmm_n_components_; i++) {
+			cout << "  [" << i << "] mean=" << (gmm_means_[i]*1000) << "ms, std="
+			     << (gmm_stds_[i]*1000) << "ms, weight=" << gmm_weights_[i] << endl;
+		}
 	}
 
 	ScoreFollower(string hmmName,double secPerQN){
@@ -405,8 +453,14 @@ void Init(){
         tempo_.clear();
         tempo_.push_back(tickPerSec_);
         M_=pow(0.2/tickPerSec_,2.);
-        // Use learned sigma from training (default 70ms)
-        Sig_t=pow(learned_timing_sigma_,2.); 
+        // Use GMM-derived sigma: weighted average of component variances
+        // This uses all trained GMM components to compute effective timing tolerance
+        double weighted_var = 0.0;
+        for (int i = 0; i < gmm_n_components_; i++) {
+            // Variance = std^2 + mean^2 (to account for offset from 0)
+            weighted_var += gmm_weights_[i] * (gmm_stds_[i] * gmm_stds_[i] + gmm_means_[i] * gmm_means_[i]);
+        }
+        Sig_t = weighted_var; 
         Sig_v=pow(0.03/(tickPerSec_*TPQN_),2.);
         SwSig_t[0]=Sig_t;
         SwSig_t[1]=pow(0.16,2.);
@@ -586,7 +640,9 @@ void Init(){
 
 		sig=0.01; mu=0; BIoiStr[0]=0.995*(1./sig)*exp(-(ioi-mu)/sig)+0.005*BIoiInsertion;//chordal
 		sig=0.05; mu=0.05; BIoiStr[1]=0.95*1./sqrt(2*M_PI*sig*sig)*exp(-0.5*pow((ioi-mu)/sig,2.))+0.05*BIoiInsertion;//arp
-		sig=0.07; mu=0.13; BIoiStr[2]=0.95*1./sqrt(2*M_PI*sig*sig)*exp(-0.5*pow((ioi-mu)/sig,2.))+0.05*BIoiInsertion;//app
+		// BIoiStr[2]: Uses learned 3-component GMM instead of hardcoded single Gaussian
+		// The GMM captures different timing behaviors (precise, rushed, delayed)
+		mu=0.13; BIoiStr[2]=0.95*gmmTimingProb(ioi-mu)+0.05*BIoiInsertion;//app - GMM-based
 		sig=0.015; mu=0.082; BIoiStr[3]=0.95*1./sqrt(2*M_PI*sig*sig)*exp(-0.5*pow((ioi-mu)/sig,2.))+0.05*BIoiInsertion;//tr
 
 		for(int i=0;i<nState_;i+=1){

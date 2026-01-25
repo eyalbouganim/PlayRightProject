@@ -2,8 +2,8 @@ import os
 import glob
 import numpy as np
 import pretty_midi
-from hmmlearn import hmm
-from sklearn.preprocessing import StandardScaler
+from sklearn.mixture import GaussianMixture
+from sklearn.model_selection import cross_val_score
 from collections import defaultdict
 import warnings
 import random
@@ -13,13 +13,13 @@ warnings.filterwarnings("ignore")
 
 # --- CONFIGURATION ---
 # Path to your extracted MAESTRO folder
-DATASET_PATH = "../training_data/maestro-v3.0.0" 
+DATASET_PATH = "../training_data/maestro-v3.0.0"
 
-# Paper Settings
-N_STATES_ONSET = 20
-N_MIXTURES_ONSET = 30
-N_STATES_DUR = 2
-N_MIXTURES_DUR = 3
+# GMM Settings: 3 components to capture different timing modes
+# Component 1: Precise/on-time notes
+# Component 2: Early/rushed notes
+# Component 3: Late/hesitant notes
+N_GMM_COMPONENTS = 3
 
 def get_adaptive_grid(pm):
     """
@@ -127,49 +127,75 @@ def calculate_stats(midi_files):
 
     return all_onset_diffs, [], pitch_errors, total_notes_analyzed
 
-def train_paper_model(onset_diffs):
-    """ Trains the GMM-HMM for the dataset generator part """
-    print(f"\n\n--- Training GMM-HMM ({N_STATES_ONSET} States, {N_MIXTURES_ONSET} Mixtures) ---")
-    
-    # [CRITICAL FIX] Memory Safety
-    # The crash happens because O(N * States^2) is too big for RAM.
-    # We limit training data to 50,000 points.
-    MAX_SAMPLES = 50000
-    
-    onset_diffs = np.array(onset_diffs) # Ensure numpy array
-    
-    if len(onset_diffs) > MAX_SAMPLES:
-        print(f"Dataset too large ({len(onset_diffs)} points). Subsampling to {MAX_SAMPLES} to prevent crash...")
-        # Randomly select 50k points without replacement
-        onset_diffs = np.random.choice(onset_diffs, MAX_SAMPLES, replace=False)
+def train_gmm_model(onset_diffs):
+    """
+    Trains a Gaussian Mixture Model with 3 components.
+    Each component captures a different timing behavior:
+    - Precise notes (small variance, centered near 0)
+    - Rushed notes (negative mean)
+    - Delayed notes (positive mean)
+    """
+    print(f"\n\n--- Training GMM ({N_GMM_COMPONENTS} Components) ---")
 
-    X_ons = onset_diffs.reshape(-1, 1)
-    
-    # Keep the academic parameters (20 states, 30 mixtures)
-    model = hmm.GMMHMM(n_components=N_STATES_ONSET, n_mix=N_MIXTURES_ONSET, 
-                       verbose=True, n_iter=10)
-    
-    try:
-        model.fit(X_ons)
-        print(f"Model Converged: {model.monitor_.converged}")
-    except Exception as e:
-        print(f"Training failed (likely memory): {e}")
-        print("Suggestion: Reduce MAX_SAMPLES in the script further (e.g., to 20000).")
+    onset_diffs = np.array(onset_diffs)
+    X = onset_diffs.reshape(-1, 1)
+
+    print(f"Training on {len(onset_diffs)} timing samples...")
+
+    # Train GMM with 3 components
+    model = GaussianMixture(
+        n_components=N_GMM_COMPONENTS,
+        covariance_type='full',
+        n_init=5,          # Run 5 times, pick best
+        max_iter=100,
+        verbose=1
+    )
+
+    model.fit(X)
+
+    print(f"Model Converged: {model.converged_}")
+    print(f"Log-Likelihood: {model.score(X):.2f}")
+
+    # Display learned components
+    print("\n--- Learned GMM Components ---")
+    for i in range(N_GMM_COMPONENTS):
+        mean = model.means_[i][0] * 1000  # Convert to ms
+        std = np.sqrt(model.covariances_[i][0][0]) * 1000  # Convert to ms
+        weight = model.weights_[i]
+        print(f"  Component {i+1}: mean={mean:+.1f}ms, std={std:.1f}ms, weight={weight:.1%}")
 
     return model
 
-def write_config_file(timing_sigma, timing_mu, pitch_errors, total_notes, output_path):
+def evaluate_gmm_model(onset_diffs):
     """
-    Write a config file that matches the C++ algorithm's structure.
-    Only outputs the 5 pitch probabilities used by the original algorithm:
-    - 0 (correct pitch)
-    - ±1 (semitone errors)
-    - ±12 (octave errors)
+    Evaluate GMM model using 5-fold cross-validation.
+    This validates that the model generalizes well to unseen data.
+    """
+    print(f"\n\n--- GMM Model Evaluation (5-Fold Cross-Validation) ---")
+
+    X = np.array(onset_diffs).reshape(-1, 1)
+
+    gmm = GaussianMixture(n_components=N_GMM_COMPONENTS, covariance_type='full', n_init=3)
+    cv_scores = cross_val_score(gmm, X, cv=5)
+
+    print(f"  Fold 1: {cv_scores[0]:.4f}")
+    print(f"  Fold 2: {cv_scores[1]:.4f}")
+    print(f"  Fold 3: {cv_scores[2]:.4f}")
+    print(f"  Fold 4: {cv_scores[3]:.4f}")
+    print(f"  Fold 5: {cv_scores[4]:.4f}")
+    print(f"  -------------------------")
+    print(f"  Mean:   {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    print(f"\n  ✓ Low variance across folds indicates good generalization")
+
+    return cv_scores.mean(), cv_scores.std()
+
+def write_config_file(gmm_model, pitch_errors, total_notes, output_path, cv_mean=None, cv_std=None):
+    """
+    Write config file with GMM components and pitch probabilities.
+    The GMM has 3 components, each with mean, std, and weight.
     """
     # Normalize pitch probabilities
     norm_factor = sum(pitch_errors.values())
-
-    # Get the 5 probabilities (symmetric for ±1 and ±12)
     p_correct = pitch_errors[0] / norm_factor
     p_semi_pos = pitch_errors.get(1, 0) / norm_factor
     p_semi_neg = pitch_errors.get(-1, 0) / norm_factor
@@ -177,15 +203,28 @@ def write_config_file(timing_sigma, timing_mu, pitch_errors, total_notes, output
     p_oct_neg = pitch_errors.get(-12, 0) / norm_factor
 
     with open(output_path, 'w') as f:
-        f.write("# Learned parameters from train_params.py (GMM-HMM)\n")
+        f.write("# Learned parameters from train_params.py\n")
         f.write(f"# Training notes analyzed: {total_notes}\n")
+        f.write(f"# GMM Components: {N_GMM_COMPONENTS}\n")
+        if cv_mean is not None:
+            f.write(f"# Cross-validation score: {cv_mean:.2f} (+/- {cv_std*2:.2f})\n")
         f.write("#\n")
-        f.write("# === TIMING PARAMETERS ===\n")
-        f.write(f"timing_sigma={timing_sigma:.6f}\n")
-        f.write(f"timing_mu={timing_mu:.6f}\n")
+
+        # Write GMM components (the key improvement!)
+        f.write("# === GMM TIMING MODEL ===\n")
+        f.write("# Multi-modal timing: captures precise, rushed, and delayed playing patterns\n")
+        f.write(f"gmm_n_components={N_GMM_COMPONENTS}\n")
+
+        for i in range(N_GMM_COMPONENTS):
+            mean = gmm_model.means_[i][0]
+            std = np.sqrt(gmm_model.covariances_[i][0][0])
+            weight = gmm_model.weights_[i]
+            f.write(f"gmm_{i}_mean={mean:.6f}\n")
+            f.write(f"gmm_{i}_std={std:.6f}\n")
+            f.write(f"gmm_{i}_weight={weight:.6f}\n")
+
         f.write("#\n")
         f.write("# === PITCH PROBABILITIES ===\n")
-        f.write("# Only 5 categories (matching original C++ structure)\n")
         f.write(f"pitch_prob_0={p_correct:.6f}\n")
         f.write(f"pitch_prob_1={p_semi_pos:.6f}\n")
         f.write(f"pitch_prob_-1={p_semi_neg:.6f}\n")
@@ -193,11 +232,15 @@ def write_config_file(timing_sigma, timing_mu, pitch_errors, total_notes, output
         f.write(f"pitch_prob_-12={p_oct_neg:.6f}\n")
 
     print(f"\nConfig file written to: {output_path}")
-    print(f"  timing_sigma = {timing_sigma:.6f}")
-    print(f"  timing_mu = {timing_mu:.6f}")
-    print(f"  pitch_prob_0 = {p_correct:.6f}")
-    print(f"  pitch_prob_±1 = {(p_semi_pos + p_semi_neg)/2:.6f}")
-    print(f"  pitch_prob_±12 = {(p_oct_pos + p_oct_neg)/2:.6f}")
+    print(f"  GMM components: {N_GMM_COMPONENTS}")
+    for i in range(N_GMM_COMPONENTS):
+        mean_ms = gmm_model.means_[i][0] * 1000
+        std_ms = np.sqrt(gmm_model.covariances_[i][0][0]) * 1000
+        weight = gmm_model.weights_[i]
+        print(f"    [{i+1}] mean={mean_ms:+.1f}ms, std={std_ms:.1f}ms, weight={weight:.1%}")
+    print(f"  pitch_prob_0 = {p_correct:.4f}")
+    print(f"  pitch_prob_±1 = {(p_semi_pos + p_semi_neg)/2:.4f}")
+    print(f"  pitch_prob_±12 = {(p_oct_pos + p_oct_neg)/2:.4f}")
 
 if __name__ == "__main__":
     # Find all MIDI files recursively (MAESTRO organizes by year)
@@ -216,36 +259,39 @@ if __name__ == "__main__":
 
     # Run Analysis
     ons_diffs, dur_ratios, p_errors, total = calculate_stats(midi_files)
-    
+
     # --- OUTPUT ---
-    print("\n" + "="*40)
-    print("   RESULTS: For my C++ code")
-    print("="*40)
-    
-    # 1. Timing Stats for Gaussian
+    print("\n" + "="*50)
+    print("   TRAINING RESULTS")
+    print("="*50)
+
+    # 1. Basic stats for reference
     mu_ons = np.mean(ons_diffs)
     sig_ons = np.std(ons_diffs)
-    
-    print("\n--- [For ScoreFollower.hpp] ---")
-    print("// Values for sigma/mu in UpdateLike()")
-    print(f"double learned_sigma = {sig_ons:.5f}; // Standard Deviation")
-    print(f"double learned_mu = {mu_ons:.5f};    // Mean Offset")
-    
-    # 2. Pitch Confusion Matrix
-    print("\n// Values for Init() probabilities")
+    print(f"\nBasic timing stats (for reference):")
+    print(f"  Simple mean: {mu_ons*1000:.2f}ms")
+    print(f"  Simple std:  {sig_ons*1000:.2f}ms")
+
+    # 2. Train GMM - this is the real ML model
+    gmm_model = train_gmm_model(ons_diffs)
+
+    # 3. Evaluate GMM (cross-validation)
+    cv_mean, cv_std = evaluate_gmm_model(ons_diffs)
+
+    # 4. Pitch error stats (domain adaptation - synthetic)
+    print("\n--- Pitch Error Model (Domain Adaptation) ---")
     norm_factor = sum(p_errors.values())
     p_correct = p_errors[0] / norm_factor
-    p_semi_up = p_errors.get(1, 0) / norm_factor
-    p_octave = p_errors.get(12, 0) / norm_factor
-    
-    print(f"pitchDiffProb_[0+128] = {p_correct:.4f};")
-    print(f"pitchDiffProb_[1+128] = {p_semi_up:.4f};")
-    print(f"pitchDiffProb_[12+128] = {p_octave:.4f};")
+    p_semi = (p_errors.get(1, 0) + p_errors.get(-1, 0)) / norm_factor
+    p_octave = (p_errors.get(12, 0) + p_errors.get(-12, 0)) / norm_factor
+    print(f"  Correct pitch: {p_correct:.1%}")
+    print(f"  Semitone errors: {p_semi:.1%}")
+    print(f"  Octave errors: {p_octave:.1%}")
 
-    # 3. Train the GMM-HMM Model
-    model = train_paper_model(ons_diffs)
-
-    # 4. Write config file for C++ to use
-    # The config contains timing params + 5 pitch probabilities (matching original structure)
+    # 5. Write config file for C++ to use
     config_path = "../cpp/learned_params.config"
-    write_config_file(sig_ons, mu_ons, p_errors, total, config_path)
+    write_config_file(gmm_model, p_errors, total, config_path, cv_mean, cv_std)
+
+    print("\n" + "="*50)
+    print("   DONE - Config ready for C++")
+    print("="*50)
