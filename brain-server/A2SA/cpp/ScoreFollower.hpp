@@ -66,6 +66,61 @@ public:
 
 	vector<double> pitchDiffProb_;
 
+	// Learned parameters (with safe defaults matching original hardcoded values)
+	double learned_timing_sigma_ = 0.07;
+	double learned_timing_mu_ = 0.0;
+	double learned_pitch_0_ = 0.8996;     // Correct pitch
+	double learned_pitch_1_ = 0.0201;     // +1 semitone
+	double learned_pitch_m1_ = 0.0201;    // -1 semitone
+	double learned_pitch_12_ = 0.0100;    // +1 octave
+	double learned_pitch_m12_ = 0.0100;   // -1 octave
+
+	/**
+	 * Load learned parameters from config file.
+	 * Only loads 7 parameters matching the original algorithm structure:
+	 * - timing_sigma, timing_mu
+	 * - pitch_prob_0, pitch_prob_1, pitch_prob_-1, pitch_prob_12, pitch_prob_-12
+	 */
+	void loadLearnedParams(const string& hmmPath) {
+		string configPath = "learned_params.config";
+		size_t lastSlash = hmmPath.find_last_of("/\\");
+		if (lastSlash != string::npos) {
+			configPath = hmmPath.substr(0, lastSlash + 1) + "learned_params.config";
+		}
+
+		ifstream ifs(configPath.c_str());
+		if (!ifs.is_open()) return; // Use defaults if not found
+
+		string line;
+		while (getline(ifs, line)) {
+			if (line.empty() || line[0] == '#') continue;
+			size_t eq = line.find('=');
+			if (eq == string::npos) continue;
+
+			string key = line.substr(0, eq);
+			double val = atof(line.substr(eq + 1).c_str());
+
+			if (key == "timing_sigma" && val > 0.03 && val < 0.15) {
+				learned_timing_sigma_ = val;
+			} else if (key == "timing_mu" && val > -0.1 && val < 0.1) {
+				learned_timing_mu_ = val;
+			} else if (key == "pitch_prob_0") {
+				learned_pitch_0_ = val;
+			} else if (key == "pitch_prob_1") {
+				learned_pitch_1_ = val;
+			} else if (key == "pitch_prob_-1") {
+				learned_pitch_m1_ = val;
+			} else if (key == "pitch_prob_12") {
+				learned_pitch_12_ = val;
+			} else if (key == "pitch_prob_-12") {
+				learned_pitch_m12_ = val;
+			}
+		}
+		ifs.close();
+		cout << "Loaded learned params: sigma=" << learned_timing_sigma_
+		     << ", pitch_0=" << learned_pitch_0_ << endl;
+	}
+
 	ScoreFollower(string hmmName,double secPerQN){
 		vector<int> v(100);
 		vector<double> d(100);
@@ -76,6 +131,9 @@ public:
 		vector<vector<string> > vvs;
 		vector<int> vpitch;
 		vector<string> vref;
+
+		// Load learned parameters before reading HMM
+		loadLearnedParams(hmmName);
 
 		hmm.ReadFile(hmmName);
 		TPQN_=hmm.TPQN;
@@ -347,8 +405,8 @@ void Init(){
         tempo_.clear();
         tempo_.push_back(tickPerSec_);
         M_=pow(0.2/tickPerSec_,2.);
-        // Matches learned sigma (70ms)
-        Sig_t=pow(0.07,2.); 
+        // Use learned sigma from training (default 70ms)
+        Sig_t=pow(learned_timing_sigma_,2.); 
         Sig_v=pow(0.03/(tickPerSec_*TPQN_),2.);
         SwSig_t[0]=Sig_t;
         SwSig_t[1]=pow(0.16,2.);
@@ -396,19 +454,19 @@ void Init(){
         logTrSkipLP=-40;//offline
 }//
 
-        // Using "Advanced Student" profile from train_params.py
+        // Pitch probabilities from training (same 5-value structure as original)
         pitchDiffProb_.clear();
         pitchDiffProb_.assign(256,1E-20);
 
-        pitchDiffProb_[0+128]   = 0.8996; // Correct Pitch (~90%)
-        
-        // Semitone Errors (Your training showed ~2%)
-        pitchDiffProb_[1+128]   = 0.0201;
-        pitchDiffProb_[-1+128]  = 0.0201;
+        pitchDiffProb_[0+128]   = learned_pitch_0_;   // Correct Pitch (~90%)
 
-        // Octave Errors (Your training showed ~1%)
-        pitchDiffProb_[12+128]  = 0.0100;
-        pitchDiffProb_[-12+128] = 0.0100;
+        // Semitone Errors (~2%)
+        pitchDiffProb_[1+128]   = learned_pitch_1_;
+        pitchDiffProb_[-1+128]  = learned_pitch_m1_;
+
+        // Octave Errors (~1%)
+        pitchDiffProb_[12+128]  = learned_pitch_12_;
+        pitchDiffProb_[-12+128] = learned_pitch_m12_;
 
         for(int j=-11;j<=11;j+=1){
             if(0.0002>pitchDiffProb_[j+128]){pitchDiffProb_[j+128]=0.0002;}

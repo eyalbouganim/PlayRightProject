@@ -100,23 +100,22 @@ def calculate_stats(midi_files):
                     all_onset_diffs.append(final_diff)
 
                 # --- 2. PITCH ERROR MODELING ---
-                # Professionals hit 99% correct notes. Amateurs don't.
-                # We simulate the AI being confused or the user playing wrong.
-                
+                # Only model the 5 error types that the C++ algorithm uses:
+                # 0 (correct), ±1 (semitone), ±12 (octave)
+                # All other errors are treated as "noise" and mapped to semitone errors
+
                 roll = random.random()
                 if roll > (1.0 - WRONG_NOTE_PROB):
                     # Simulate specific types of errors
                     error_type_roll = random.random()
-                    if error_type_roll < 0.4:
-                        # Semitone slip (very common)
+                    if error_type_roll < 0.5:
+                        # Semitone slip (most common error type)
+                        # Also absorbs "other" errors since C++ only uses these 5 categories
                         err = random.choice([1, -1])
-                    elif error_type_roll < 0.6:
+                    else:
                         # Octave slip (common in transcription)
                         err = random.choice([12, -12])
-                    else:
-                        # Random clumsy finger
-                        err = random.choice([2, -2, 3, -3, 4, -4, 5, 7])
-                    
+
                     pitch_errors[err] += 1
                 else:
                     pitch_errors[0] += 1 # Correct note
@@ -158,6 +157,47 @@ def train_paper_model(onset_diffs):
         print("Suggestion: Reduce MAX_SAMPLES in the script further (e.g., to 20000).")
 
     return model
+
+def write_config_file(timing_sigma, timing_mu, pitch_errors, total_notes, output_path):
+    """
+    Write a config file that matches the C++ algorithm's structure.
+    Only outputs the 5 pitch probabilities used by the original algorithm:
+    - 0 (correct pitch)
+    - ±1 (semitone errors)
+    - ±12 (octave errors)
+    """
+    # Normalize pitch probabilities
+    norm_factor = sum(pitch_errors.values())
+
+    # Get the 5 probabilities (symmetric for ±1 and ±12)
+    p_correct = pitch_errors[0] / norm_factor
+    p_semi_pos = pitch_errors.get(1, 0) / norm_factor
+    p_semi_neg = pitch_errors.get(-1, 0) / norm_factor
+    p_oct_pos = pitch_errors.get(12, 0) / norm_factor
+    p_oct_neg = pitch_errors.get(-12, 0) / norm_factor
+
+    with open(output_path, 'w') as f:
+        f.write("# Learned parameters from train_params.py (GMM-HMM)\n")
+        f.write(f"# Training notes analyzed: {total_notes}\n")
+        f.write("#\n")
+        f.write("# === TIMING PARAMETERS ===\n")
+        f.write(f"timing_sigma={timing_sigma:.6f}\n")
+        f.write(f"timing_mu={timing_mu:.6f}\n")
+        f.write("#\n")
+        f.write("# === PITCH PROBABILITIES ===\n")
+        f.write("# Only 5 categories (matching original C++ structure)\n")
+        f.write(f"pitch_prob_0={p_correct:.6f}\n")
+        f.write(f"pitch_prob_1={p_semi_pos:.6f}\n")
+        f.write(f"pitch_prob_-1={p_semi_neg:.6f}\n")
+        f.write(f"pitch_prob_12={p_oct_pos:.6f}\n")
+        f.write(f"pitch_prob_-12={p_oct_neg:.6f}\n")
+
+    print(f"\nConfig file written to: {output_path}")
+    print(f"  timing_sigma = {timing_sigma:.6f}")
+    print(f"  timing_mu = {timing_mu:.6f}")
+    print(f"  pitch_prob_0 = {p_correct:.6f}")
+    print(f"  pitch_prob_±1 = {(p_semi_pos + p_semi_neg)/2:.6f}")
+    print(f"  pitch_prob_±12 = {(p_oct_pos + p_oct_neg)/2:.6f}")
 
 if __name__ == "__main__":
     # Find all MIDI files recursively (MAESTRO organizes by year)
@@ -201,6 +241,11 @@ if __name__ == "__main__":
     print(f"pitchDiffProb_[0+128] = {p_correct:.4f};")
     print(f"pitchDiffProb_[1+128] = {p_semi_up:.4f};")
     print(f"pitchDiffProb_[12+128] = {p_octave:.4f};")
-    
-    # 3. Train the Stats Model (for show)
-    train_paper_model(ons_diffs)
+
+    # 3. Train the GMM-HMM Model
+    model = train_paper_model(ons_diffs)
+
+    # 4. Write config file for C++ to use
+    # The config contains timing params + 5 pitch probabilities (matching original structure)
+    config_path = "../cpp/learned_params.config"
+    write_config_file(sig_ons, mu_ons, p_errors, total, config_path)
