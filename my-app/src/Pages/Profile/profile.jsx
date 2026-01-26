@@ -20,6 +20,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
 import BadgeIcon from '@mui/icons-material/Badge';
+import defaultProfilePic from '../../assets/profilePic.jpg';
 
 const Profile = () => {
     const [user, setUser] = useState(null);
@@ -168,10 +169,12 @@ const Profile = () => {
                                 mb: 6
                             }}
                         >
-                            <Avatar 
-                                sx={{ 
-                                    width: 120, 
-                                    height: 120, 
+                            <Avatar
+                                src={user?.profile_pic || defaultProfilePic}
+                                alt={`${user?.first_name} ${user?.last_name}`}
+                                sx={{
+                                    width: 120,
+                                    height: 120,
                                     bgcolor: 'white',
                                     color: 'primary.main',
                                     fontSize: '3rem',

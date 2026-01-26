@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, Container, Paper } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import SettingsIcon from '@mui/icons-material/Settings';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import InfoIcon from '@mui/icons-material/Info';
 import HelpIcon from '@mui/icons-material/Help';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
@@ -19,8 +19,8 @@ const Home = () => {
         navigate('/statistics');
     };
 
-    const handleSettingsClick = () => {
-        navigate('/settings');
+    const handleJournalClick = () => {
+        navigate('/journal');
     };
 
     const handleAboutClick = () => {
@@ -55,22 +55,51 @@ const Home = () => {
             <Container maxWidth="lg">
                 {/* Hero Section */}
                 <Box sx={{ textAlign: 'center', mb: 8 }}>
-                    <Typography
-                        variant="h2"
-                        component="h1"
-                        sx={{
-                            fontWeight: 700,
-                            color: 'text.primary',
-                            letterSpacing: '-0.01em',
-                            mb: 2,
-                        }}
-                    >
-                        PlayRight
-                    </Typography>
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', mb: 3 }}>
+                        <Box
+                            sx={{
+                                width: { xs: 48, sm: 56, md: 64 },
+                                height: { xs: 48, sm: 56, md: 64 },
+                                borderRadius: '16px',
+                                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 50%, #0d47a1 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mr: { xs: 1.5, sm: 2 },
+                                boxShadow: '0 8px 32px rgba(25, 118, 210, 0.4)',
+                            }}
+                        >
+                            <MusicNoteIcon sx={{
+                                fontSize: { xs: 28, sm: 32, md: 38 },
+                                color: 'white'
+                            }} />
+                        </Box>
+                        <Typography
+                            variant="h1"
+                            component="h1"
+                            sx={{
+                                fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' },
+                                fontWeight: 800,
+                                letterSpacing: '-0.02em',
+                                background: 'linear-gradient(135deg, #42a5f5 0%, #1976d2 50%, #0d47a1 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                            }}
+                        >
+                            PlayRight
+                        </Typography>
+                    </Box>
                     <Typography
                         variant="h6"
                         color="text.secondary"
-                        sx={{ fontWeight: 400, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}
+                        sx={{
+                            fontWeight: 400,
+                            maxWidth: '600px',
+                            mx: 'auto',
+                            lineHeight: 1.6,
+                            fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' }
+                        }}
                     >
                         Master your instrument with intelligent feedback and progress tracking
                     </Typography>
@@ -276,7 +305,7 @@ const Home = () => {
                         </Typography>
                     </Paper>
 
-                    {/* Settings Card */}
+                    {/* Journal Card */}
                     <Paper
                         elevation={0}
                         sx={{
@@ -295,14 +324,14 @@ const Home = () => {
                                 bgcolor: 'grey.50',
                             },
                         }}
-                        onClick={handleSettingsClick}
+                        onClick={handleJournalClick}
                     >
-                        <SettingsIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
+                        <MenuBookIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
                         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                            Settings
+                            Journal
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                            Customize app
+                            Track progress
                         </Typography>
                     </Paper>
 

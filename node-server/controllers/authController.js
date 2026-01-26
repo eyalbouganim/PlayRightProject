@@ -16,10 +16,18 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
  */
 const register = async (req, res) => {
     try {
-        const { firstName, lastName, email, password } = req.body;
+        const { firstName, lastName, email, password, profilePic } = req.body;
 
         if (!firstName || !lastName || !email || !password) {
             return res.status(400).json({ message: 'All fields are required.' });
+        }
+
+        // Validate password strength
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                message: 'Password must be at least 8 characters with uppercase, lowercase, and a special character.'
+            });
         }
 
         // Check if user already exists
@@ -37,7 +45,8 @@ const register = async (req, res) => {
             first_name: firstName,
             last_name: lastName,
             email,
-            password_hash
+            password_hash,
+            profile_pic: profilePic || null
         });
 
         logger.info(`New user registered: ${newUser.email}`);
@@ -85,6 +94,7 @@ const login = async (req, res) => {
             user: {
                 firstName: user.first_name,
                 lastName: user.last_name,
+                profilePic: user.profile_pic
             }
         });
     } catch (error) {
@@ -153,6 +163,7 @@ const googleLogin = async (req, res) => {
             user: {
                 firstName: user.first_name,
                 lastName: user.last_name,
+                profilePic: user.profile_pic
             }
         });
 
