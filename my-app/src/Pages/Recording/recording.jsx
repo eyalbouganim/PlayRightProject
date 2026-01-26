@@ -5,11 +5,6 @@ import {
     Box,
     Typography,
     Paper,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
     CircularProgress,
     Grid,
     Card,
@@ -27,7 +22,6 @@ import RecordingHeader from './components/RecordingHeader';
 import RecordingControls from './components/RecordingControls';
 import AnalysisDialog from './components/AnalysisDialog';
 import { parseMusicXMLToNotes } from '../../utils/musicXMLParser';
-import RecordingScore from './components/RecordingScore';
 
 const Recording = () => {
     const navigate = useNavigate();
@@ -74,7 +68,7 @@ const Recording = () => {
             if (!token) return;
             setIsLoadingSongs(true);
             try {
-                const response = await fetch('http://localhost:3001/api/songs', {
+                const response = await fetch('http://localhost:3001/api/songs?mode=performance', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -371,9 +365,20 @@ const Recording = () => {
             />
 
             {/* Main Content Area - Sheet Music Focused */}
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-                <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 2, position: 'relative' }}>
-                    
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', pb: 2 }}>
+                <Container
+                    maxWidth="xl"
+                    sx={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        pt: 2,
+                        pb: 0,
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}
+                >
+
                     {/* Countdown Overlay */}
                     {isCountingDown && (
                         <Box
@@ -391,12 +396,12 @@ const Recording = () => {
                                 borderRadius: 4,
                             }}
                         >
-                            <Typography 
-                                variant="h1" 
-                                sx={{ 
-                                    color: 'primary.main', 
-                                    fontWeight: 900, 
-                                    fontSize: '12rem', 
+                            <Typography
+                                variant="h1"
+                                sx={{
+                                    color: 'primary.main',
+                                    fontWeight: 900,
+                                    fontSize: '12rem',
                                     textShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
                                     animation: 'countdownPulse 1s ease-in-out'
                                 }}
@@ -407,11 +412,11 @@ const Recording = () => {
                     )}
 
                     {/* Sheet Music Display - Takes Full Space */}
-                    <Paper 
-                        elevation={0} 
-                        sx={{ 
+                    <Paper
+                        elevation={0}
+                        sx={{
                             flex: 1,
-                            overflow: 'auto',
+                            overflow: 'hidden',
                             borderRadius: 3,
                             bgcolor: 'white',
                             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -421,89 +426,157 @@ const Recording = () => {
                             position: 'relative'
                         }}
                     >
-                        <Box 
-                            sx={{ 
-                                width: '100%', 
-                                height: '100%', 
-                                p: 4,
-                                display: 'flex', 
-                                flexDirection: 'column',
-                                overflow: 'auto'
+                        <Box
+                            sx={{
+                                width: '100%',
+                                height: '100%',
+                                overflow: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column'
                             }}
                         >
-                            {!musicXML ? (
-                                <Box sx={{ width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                    <LibraryMusicIcon sx={{ fontSize: 80, color: 'primary.main', mb: 3, opacity: 0.3 }} />
-                                    <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: 'text.primary' }}>
-                                        Select a Song to Begin
-                                    </Typography>
-                                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                                        Choose from your library or upload a new MusicXML file
-                                    </Typography>
-                                    
-                                    {isLoadingSongs ? (
-                                        <CircularProgress />
-                                    ) : (
-                                        <Grid container spacing={2} sx={{ width: '100%', maxWidth: 900 }}>
-                                            {availableSongs.map((song, index) => (
-                                                <Grid item xs={12} sm={6} md={4} key={song.id || index}>
-                                                    <Grow in={true} timeout={(index + 1) * 150}>
-                                                        <Card 
-                                                            elevation={0}
-                                                            sx={{ 
-                                                                borderRadius: 3,
-                                                                border: '1px solid',
-                                                                borderColor: 'divider',
-                                                                transition: 'all 0.2s',
-                                                                '&:hover': {
-                                                                    transform: 'translateY(-4px)',
-                                                                    boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-                                                                    borderColor: 'primary.main'
-                                                                }
-                                                            }}
-                                                        >
-                                                            <CardActionArea 
-                                                                onClick={() => handleSongRetrieved(song)}
-                                                                sx={{ p: 2.5 }}
+                            <Box
+                                sx={{
+                                    width: '100%',
+                                    p: 4,
+                                    pb: 8, // More padding at bottom
+                                    minHeight: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column'
+                                }}
+                            >
+                                {!musicXML ? (
+                                    <Box
+                                        sx={{
+                                            width: '100%',
+                                            flex: 1,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: availableSongs.length > 0 ? 'flex-start' : 'center',
+                                            pt: availableSongs.length > 0 ? 2 : 0
+                                        }}
+                                    >
+                                        <LibraryMusicIcon sx={{ fontSize: 80, color: 'primary.main', mb: 3, opacity: 0.3 }} />
+                                        <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: 'text.primary' }}>
+                                            Select a Song to Begin
+                                        </Typography>
+                                        <Typography variant="body1" color="text.secondary" sx={{ mb: 5 }}>
+                                            Choose from your library or upload a new MusicXML file
+                                        </Typography>
+
+                                        {isLoadingSongs ? (
+                                            <CircularProgress />
+                                        ) : (
+                                            <Grid
+                                                container
+                                                spacing={3}
+                                                sx={{
+                                                    width: '100%',
+                                                    maxWidth: 1000,
+                                                    mb: 6
+                                                }}
+                                            >
+                                                {availableSongs.map((song, index) => (
+                                                    <Grid item xs={12} sm={6} md={4} key={song.id || index}>
+                                                        <Grow in={true} timeout={(index + 1) * 150}>
+                                                            <Card
+                                                                elevation={0}
+                                                                sx={{
+                                                                    height: 160,
+                                                                    borderRadius: 3,
+                                                                    border: '1px solid',
+                                                                    borderColor: 'divider',
+                                                                    transition: 'all 0.2s',
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    '&:hover': {
+                                                                        transform: 'translateY(-4px)',
+                                                                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                                                                        borderColor: 'primary.main'
+                                                                    }
+                                                                }}
                                                             >
-                                                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-                                                                    <LibraryMusicIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-                                                                    <Box sx={{ textAlign: 'center' }}>
-                                                                        <Typography variant="subtitle1" fontWeight="bold" noWrap>
-                                                                            {song.title || "Untitled"}
-                                                                        </Typography>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {song.artist || "Unknown Artist"}
-                                                                        </Typography>
+                                                                <CardActionArea
+                                                                    onClick={() => handleSongRetrieved(song)}
+                                                                    sx={{
+                                                                        height: '100%',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        p: 3
+                                                                    }}
+                                                                >
+                                                                    <Box
+                                                                        sx={{
+                                                                            display: 'flex',
+                                                                            flexDirection: 'column',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            gap: 2,
+                                                                            width: '100%'
+                                                                        }}
+                                                                    >
+                                                                        <LibraryMusicIcon sx={{ fontSize: 48, color: 'primary.main', flexShrink: 0 }} />
+                                                                        <Box sx={{ textAlign: 'center', width: '100%' }}>
+                                                                            <Typography
+                                                                                variant="subtitle1"
+                                                                                fontWeight="bold"
+                                                                                sx={{
+                                                                                    mb: 0.5,
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis',
+                                                                                    display: '-webkit-box',
+                                                                                    WebkitLineClamp: 2,
+                                                                                    WebkitBoxOrient: 'vertical',
+                                                                                    lineHeight: 1.3,
+                                                                                    minHeight: '2.6em'
+                                                                                }}
+                                                                            >
+                                                                                {song.title || "Untitled"}
+                                                                            </Typography>
+                                                                            <Typography
+                                                                                variant="caption"
+                                                                                color="text.secondary"
+                                                                                sx={{
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis',
+                                                                                    whiteSpace: 'nowrap',
+                                                                                    display: 'block'
+                                                                                }}
+                                                                            >
+                                                                                {song.artist || "Unknown Artist"}
+                                                                            </Typography>
+                                                                        </Box>
                                                                     </Box>
-                                                                </Box>
-                                                            </CardActionArea>
-                                                        </Card>
-                                                    </Grow>
-                                                </Grid>
-                                            ))}
-                                            {availableSongs.length === 0 && (
-                                                <Grid item xs={12}>
-                                                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                                                        No songs in your library yet. Upload one to get started!
-                                                    </Typography>
-                                                </Grid>
-                                            )}
-                                        </Grid>
-                                    )}
-                                </Box>
-                            ) : (
-                                <Box sx={{ width: '100%', height: '100%' }}>
-                                    <SheetMusicDisplay
-                                        musicXML={musicXML}
-                                        currentTargetNoteIndex={currentTargetNoteIndex}
-                                        noteStatuses={noteStatuses}
-                                        bpm={tempo}
-                                        isPlaying={isRecording && !isCountingDown}
-                                        onCursorUpdate={handleCursorUpdate}
-                                    />
-                                </Box>
-                            )}
+                                                                </CardActionArea>
+                                                            </Card>
+                                                        </Grow>
+                                                    </Grid>
+                                                ))}
+                                                {availableSongs.length === 0 && (
+                                                    <Grid item xs={12}>
+                                                        <Typography variant="body2" color="text.secondary" textAlign="center">
+                                                            No songs in your library yet. Upload one to get started!
+                                                        </Typography>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        )}
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ width: '100%', height: '100%' }}>
+                                        <SheetMusicDisplay
+                                            musicXML={musicXML}
+                                            currentTargetNoteIndex={currentTargetNoteIndex}
+                                            noteStatuses={noteStatuses}
+                                            bpm={tempo}
+                                            isPlaying={isRecording && !isCountingDown}
+                                            onCursorUpdate={handleCursorUpdate}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
                     </Paper>
                 </Container>
@@ -553,54 +626,13 @@ const Recording = () => {
                 </Box>
             )}
 
-            {/* Analysis Loading Dialog */}
-            <AnalysisDialog open={isScoring} />
-
-            {/* Results Dialog */}
-            <Dialog 
-                open={resultsDialogOpen} 
+            {/* Analysis Dialog - Now includes both loading and results */}
+            <AnalysisDialog
+                open={isScoring || resultsDialogOpen}
                 onClose={() => setResultsDialogOpen(false)}
-                maxWidth="lg"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: 4,
-                        boxShadow: '0 24px 64px rgba(0,0,0,0.2)'
-                    }
-                }}
-            >
-                <DialogTitle 
-                    sx={{ 
-                        textAlign: 'center', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white', 
-                        py: 3
-                    }}
-                >
-                    <Typography variant="h5" fontWeight="bold">
-                        📊 Performance Analysis
-                    </Typography>
-                </DialogTitle>
-                <DialogContent sx={{ mt: 3, px: 4 }}>
-                    <RecordingScore performanceResults={performanceResults} />
-                </DialogContent>
-                <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
-                    <Button 
-                        onClick={() => setResultsDialogOpen(false)} 
-                        variant="contained" 
-                        size="large"
-                        sx={{ 
-                            borderRadius: 3, 
-                            px: 5, 
-                            py: 1.2,
-                            fontWeight: 700,
-                            textTransform: 'none'
-                        }}
-                    >
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                performanceResults={performanceResults}
+                performanceId={performanceResults?.performanceId}
+            />
 
             {/* Metronome Hint */}
             <Snackbar

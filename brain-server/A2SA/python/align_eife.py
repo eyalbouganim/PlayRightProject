@@ -42,6 +42,11 @@ def run_alignment(audio_path, score_path):
             shutil.copy2(score_path, os.path.join(temp_dir, file_score))
             transcribe_audio_to_midi(audio_path, os.path.join(temp_dir, file_perf), device='cpu')
 
+            # Copy learned params config if it exists
+            config_file = os.path.join(CPP_DIR, 'learned_params.config')
+            if os.path.exists(config_file):
+                shutil.copy2(config_file, os.path.join(temp_dir, 'learned_params.config'))
+
             # C++ Pipeline
             subprocess.run([tools["midi2pianoroll"], "0", stem_score], cwd=temp_dir, check=True, stdout=subprocess.DEVNULL)
             subprocess.run([tools["midi2pianoroll"], "0", stem_perf], cwd=temp_dir, check=True, stdout=subprocess.DEVNULL)

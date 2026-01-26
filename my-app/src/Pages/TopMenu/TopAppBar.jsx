@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     AppBar,
     Toolbar,
@@ -16,9 +16,16 @@ import {
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import Logout from '@mui/icons-material/Logout';
 import Person from '@mui/icons-material/Person';
+import MicIcon from '@mui/icons-material/Mic';
+import SchoolIcon from '@mui/icons-material/School';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 const TopAppBar = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [user, setUser] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -60,6 +67,19 @@ const TopAppBar = () => {
         return name ? name.charAt(0).toUpperCase() : 'U';
     };
 
+    // Navigation items configuration
+    const navItems = [
+        { label: 'Performance Mode', icon: <MicIcon />, path: '/recording', color: '#f44336' },
+        { label: 'Learn Mode', icon: <SchoolIcon />, path: '/learn', color: '#4caf50' },
+        { label: 'Statistics', icon: <BarChartIcon />, path: '/statistics', color: '#ff9800' },
+        { label: 'Library', icon: <LibraryMusicIcon />, path: '/library', color: '#9c27b0' },
+        { label: 'Help & Tutorials', icon: <HelpOutlineIcon />, path: '/help', color: '#2196f3' },
+        { label: 'Settings', icon: <SettingsIcon />, path: '/settings', color: '#607d8b' }
+    ];
+
+    // Check if current path matches nav item
+    const isActive = (path) => location.pathname === path;
+
     return (
         <AppBar
             position="sticky"
@@ -72,14 +92,13 @@ const TopAppBar = () => {
                 borderBottom: '1px solid rgba(255, 255, 255, 0.3)'
             }}
         >
-            <Toolbar>
+            <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
                 {/* Brand / Logo Area */}
                 <Box
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        cursor: 'pointer',
-                        flexGrow: 1
+                        cursor: 'pointer'
                     }}
                     onClick={handleHome}
                 >
@@ -106,20 +125,62 @@ const TopAppBar = () => {
                             background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
+                            display: { xs: 'none', sm: 'block' }
                         }}
                     >
                         PlayRight
                     </Typography>
                 </Box>
 
+                {/* Navigation Buttons */}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        flex: 1,
+                        justifyContent: 'center',
+                        overflow: 'auto',
+                        '&::-webkit-scrollbar': { display: 'none' },
+                        scrollbarWidth: 'none'
+                    }}
+                >
+                    {navItems.map((item) => (
+                        <Tooltip key={item.path} title={item.label} arrow>
+                            <IconButton
+                                onClick={() => navigate(item.path)}
+                                sx={{
+                                    width: 44,
+                                    height: 44,
+                                    backgroundColor: isActive(item.path)
+                                        ? `${item.color}15`
+                                        : 'transparent',
+                                    color: isActive(item.path) ? item.color : 'text.secondary',
+                                    border: isActive(item.path)
+                                        ? `2px solid ${item.color}`
+                                        : '2px solid transparent',
+                                    transition: 'all 0.2s',
+                                    '&:hover': {
+                                        backgroundColor: `${item.color}20`,
+                                        color: item.color,
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: `0 4px 12px ${item.color}40`
+                                    }
+                                }}
+                            >
+                                {item.icon}
+                            </IconButton>
+                        </Tooltip>
+                    ))}
+                </Box>
+
                 {/* User Actions Area */}
                 {user && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography
                             variant="body1"
                             sx={{
-                                mr: 2,
-                                display: { xs: 'none', sm: 'block' },
+                                display: { xs: 'none', md: 'block' },
                                 color: 'text.secondary',
                                 fontWeight: 500
                             }}
@@ -131,7 +192,6 @@ const TopAppBar = () => {
                             <IconButton
                                 onClick={handleMenuClick}
                                 size="small"
-                                sx={{ ml: 0.5 }}
                                 aria-controls={open ? 'account-menu' : undefined}
                                 aria-haspopup="true"
                                 aria-expanded={open ? 'true' : undefined}

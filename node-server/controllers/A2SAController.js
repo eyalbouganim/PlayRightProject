@@ -38,9 +38,17 @@ try:
                 m.rightBarline = None
     except: pass
 
-    # 4. Extract the Piano Part (Both Hands)
+    # 4. Extract piano parts (right hand + left hand, max 2 parts)
     if hasattr(s, 'parts') and len(s.parts) > 0:
-        s = s.parts[0]
+        if len(s.parts) == 1:
+            # Single part - use it directly (contains both hands)
+            s = s.parts[0]
+        elif len(s.parts) >= 2:
+            # Multiple parts - combine first two (right hand + left hand)
+            combined = music21.stream.Score()
+            combined.insert(0, s.parts[0])  # Right hand
+            combined.insert(0, s.parts[1])  # Left hand
+            s = combined
 
     # 5. Write to MIDI
     print(f"Writing MIDI to: {r'${midiPath}'}")
@@ -164,11 +172,12 @@ exports.align = async (req, res) => {
                     avgDuration = totalDur / playedNotes.length;
                 }
 
-                // 🎯 STRICT BUT NOT PRO SETTINGS
-                // 1. Minimum threshold raised to 60ms (Pro is 30ms, Casual is 100ms)
-                // 2. Maximum threshold clamped to 120ms (prevents lazy playing on slow songs)
-                const THRESHOLD_PERFECT = Math.min(0.12, Math.max(0.06, avgDuration * 0.20));
-                const THRESHOLD_OK = Math.min(0.35, Math.max(0.15, avgDuration * 0.50));
+                // 🎯 STRICTER TIMING SETTINGS (for serious practice)
+                // Perfect: 40-80ms (tighter than casual, achievable for intermediate students)
+                // OK: 80-180ms (gives feedback without frustration)
+                // Bad: >180ms (pushes students to improve)
+                const THRESHOLD_PERFECT = Math.min(0.08, Math.max(0.04, avgDuration * 0.15));
+                const THRESHOLD_OK = Math.min(0.18, Math.max(0.08, avgDuration * 0.35));
 
                 logger.info(`🎯 Grading: AvgDur=${avgDuration.toFixed(2)}s | Strict Perfect<${THRESHOLD_PERFECT.toFixed(3)}s`);
 

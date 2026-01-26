@@ -1,16 +1,15 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Button, Container, Paper, useTheme } from '@mui/material';
+import { Box, Typography, Button, Container, Paper } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import InfoIcon from '@mui/icons-material/Info';
 import HelpIcon from '@mui/icons-material/Help';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
+import SchoolIcon from '@mui/icons-material/School';
 
 const Home = () => {
     const navigate = useNavigate();
-    const theme = useTheme();
 
     const handlePracticeClick = () => {
         navigate('/recording');
@@ -36,6 +35,10 @@ const Home = () => {
         navigate('/library');
     };
 
+    const handleLearnClick = () => {
+        navigate('/learn');
+    };
+
     return (
         <Box
             component="main"
@@ -45,417 +48,337 @@ const Home = () => {
                 flexDirection: 'column',
                 justifyContent: 'center',
                 minHeight: '100vh',
-                py: 8,
+                py: 6,
                 bgcolor: 'background.default'
             }}
         >
             <Container maxWidth="lg">
+                {/* Hero Section */}
                 <Box sx={{ textAlign: 'center', mb: 8 }}>
                     <Typography
                         variant="h2"
                         component="h1"
                         sx={{
-                            fontWeight: 800,
-                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            letterSpacing: '-0.02em',
+                            fontWeight: 700,
+                            color: 'text.primary',
+                            letterSpacing: '-0.01em',
                             mb: 2,
-                            filter: 'drop-shadow(0 4px 6px rgba(25, 118, 210, 0.4))',
                         }}
                     >
                         PlayRight
                     </Typography>
                     <Typography
-                        variant="h5"
+                        variant="h6"
                         color="text.secondary"
-                        sx={{ fontWeight: 600, maxWidth: '600px', mx: 'auto' }}
+                        sx={{ fontWeight: 400, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}
                     >
-                        Master your instrument with intelligent feedback and progress tracking.
+                        Master your instrument with intelligent feedback and progress tracking
                     </Typography>
                 </Box>
 
-                {/* --- FLEXBOX CONTAINER --- */}
+                {/* Featured Cards - Rock a Performance & Learn the Basics */}
                 <Box
                     sx={{
                         display: 'grid',
                         gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
                         gap: 4,
                         width: '100%',
+                        mb: 6,
                     }}
                 >
-                    {/* Practice Card */}
+                    {/* Rock a Performance Card */}
                     <Paper
                         elevation={0}
                         sx={{
-                            // Make the card flexible. 
-                            // On desktop, it takes 1 unit of space (flex: 1).
-                            // width: '100%' ensures it fills the flex container on mobile.
-                            flex: 1,
-                            width: '100%', 
-                            p: 4,
+                            p: 5,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            alignItems: 'flex-start',
+                            textAlign: 'left',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 3,
+                            transition: 'all 0.3s ease',
                             cursor: 'pointer',
+                            position: 'relative',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
+                                transform: 'translateY(-4px)',
+                                boxShadow: '0 12px 24px rgba(0, 0, 0, 0.08)',
                                 borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
                             },
                         }}
                         onClick={handlePracticeClick}
                     >
                         <Box
                             sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'primary.light',
-                                color: 'primary.contrastText',
+                                width: 56,
+                                height: 56,
+                                borderRadius: 2,
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 mb: 3,
-                                opacity: 0.9
                             }}
                         >
-                            <MusicNoteIcon fontSize="large" />
+                            <MusicNoteIcon sx={{ fontSize: 32 }} />
                         </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
-                            Practice
+                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                            Performance Mode
                         </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Start a recording session. Get real-time analysis on your pitch, rhythm, and tempo.
+                        <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.7 }}>
+                            Record your performance and receive comprehensive AI-powered analysis on pitch accuracy, rhythm precision, and tempo consistency.
                         </Typography>
-                        <Button
-                            variant="contained"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600
-                            }}
-                        >
+                        <Box sx={{
+                            mt: 'auto',
+                            pt: 3,
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'primary.main',
+                            fontWeight: 600,
+                        }}>
                             Start Session
-                        </Button>
+                            <Box component="span" sx={{ ml: 1, transition: 'transform 0.2s', display: 'inline-block' }}>
+                                →
+                            </Box>
+                        </Box>
                     </Paper>
 
+                    {/* Learn the Basics Card */}
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 5,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            textAlign: 'left',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 3,
+                            transition: 'all 0.3s ease',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            '&:hover': {
+                                transform: 'translateY(-4px)',
+                                boxShadow: '0 12px 24px rgba(0, 0, 0, 0.08)',
+                                borderColor: 'secondary.main',
+                            },
+                        }}
+                        onClick={handleLearnClick}
+                    >
+                        <Box
+                            sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 2,
+                                bgcolor: 'secondary.main',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mb: 3,
+                            }}
+                        >
+                            <SchoolIcon sx={{ fontSize: 32 }} />
+                        </Box>
+                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                            Learning Mode
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.7 }}>
+                            Practice melodies at your own pace with real-time note detection. Focus on learning without the pressure of grading or evaluation.
+                        </Typography>
+                        <Box sx={{
+                            mt: 'auto',
+                            pt: 3,
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'secondary.main',
+                            fontWeight: 600,
+                        }}>
+                            Start Learning
+                            <Box component="span" sx={{ ml: 1, transition: 'transform 0.2s', display: 'inline-block' }}>
+                                →
+                            </Box>
+                        </Box>
+                    </Paper>
+                </Box>
+
+                {/* Secondary Navigation Grid */}
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' },
+                        gap: 2,
+                        width: '100%',
+                    }}
+                >
                     {/* Music Library Card */}
                     <Paper
                         elevation={0}
                         sx={{
-                            flex: 1,
-                            width: '100%',
-                            p: 4,
+                            p: 3,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            alignItems: 'flex-start',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
-                                borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: 'text.secondary',
+                                bgcolor: 'grey.50',
                             },
                         }}
                         onClick={handleLibraryClick}
                     >
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'action.selected',
-                                color: 'primary.main',
-                                mb: 3,
-                            }}
-                        >
-                            <LibraryMusicIcon fontSize="large" />
-                        </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
+                        <LibraryMusicIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                             Library
                         </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Browse sheet music. Find songs to practice by difficulty, composer, or title.
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                            Browse sheet music
                         </Typography>
-                        <Button
-                            variant="outlined"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderWidth: 2,
-                                '&:hover': { borderWidth: 2 }
-                            }}
-                        >
-                            Browse Songs
-                        </Button>
                     </Paper>
 
                     {/* Statistics Card */}
                     <Paper
                         elevation={0}
                         sx={{
-                            flex: 1,
-                            width: '100%',
-                            p: 4,
+                            p: 3,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            alignItems: 'flex-start',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
-                                borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: 'text.secondary',
+                                bgcolor: 'grey.50',
                             },
                         }}
                         onClick={handleStatisticsClick}
                     >
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'action.selected',
-                                color: 'primary.main',
-                                mb: 3,
-                            }}
-                        >
-                            <BarChartIcon fontSize="large" />
-                        </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
+                        <BarChartIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                             Statistics
                         </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Visualize your progress. Review past sessions and identify areas for improvement.
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                            Track progress
                         </Typography>
-                        <Button
-                            variant="outlined"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderWidth: 2,
-                                '&:hover': { borderWidth: 2 }
-                            }}
-                        >
-                            View Dashboard
-                        </Button>
                     </Paper>
 
                     {/* Settings Card */}
                     <Paper
                         elevation={0}
                         sx={{
-                            flex: 1,
-                            width: '100%',
-                            p: 4,
+                            p: 3,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            alignItems: 'flex-start',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
-                                borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: 'text.secondary',
+                                bgcolor: 'grey.50',
                             },
                         }}
                         onClick={handleSettingsClick}
                     >
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'action.selected',
-                                color: 'primary.main',
-                                mb: 3,
-                            }}
-                        >
-                            <SettingsIcon fontSize="large" />
-                        </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
+                        <SettingsIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                             Settings
                         </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Customize your experience. Adjust audio sensitivity and notification preferences.
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                            Customize app
                         </Typography>
-                        <Button
-                            variant="outlined"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderWidth: 2,
-                                '&:hover': { borderWidth: 2 }
-                            }}
-                        >
-                            Open Settings
-                        </Button>
                     </Paper>
 
                     {/* About Card */}
                     <Paper
                         elevation={0}
                         sx={{
-                            flex: 1,
-                            width: '100%',
-                            p: 4,
+                            p: 3,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            alignItems: 'flex-start',
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
-                                borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: 'text.secondary',
+                                bgcolor: 'grey.50',
                             },
                         }}
                         onClick={handleAboutClick}
                     >
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'action.selected',
-                                color: 'primary.main',
-                                mb: 3,
-                            }}
-                        >
-                            <InfoIcon fontSize="large" />
-                        </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
-                            About Us
+                        <InfoIcon sx={{ fontSize: 28, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            About
                         </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Learn about our mission. Meet the team behind PlayRight and our vision.
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                            Our mission
                         </Typography>
-                        <Button
-                            variant="outlined"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderWidth: 2,
-                                '&:hover': { borderWidth: 2 }
-                            }}
-                        >
-                            Learn More
-                        </Button>
                     </Paper>
+                </Box>
 
-                    {/* Help Card */}
+                {/* Help Section */}
+                <Box sx={{ mt: 4 }}>
                     <Paper
                         elevation={0}
                         sx={{
-                            flex: 1,
-                            width: '100%',
                             p: 4,
                             display: 'flex',
-                            flexDirection: 'column',
+                            flexDirection: { xs: 'column', sm: 'row' },
                             alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.5)',
-                            borderRadius: 4,
-                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
-                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            gap: 3,
+                            bgcolor: 'white',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
                             cursor: 'pointer',
                             '&:hover': {
-                                transform: 'translateY(-8px) scale(1.02)',
-                                boxShadow: '0 20px 50px rgba(25, 118, 210, 0.25)',
-                                borderColor: 'primary.main',
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: 'text.secondary',
+                                bgcolor: 'grey.50',
                             },
                         }}
                         onClick={handleHelpClick}
                     >
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '50%',
-                                bgcolor: 'action.selected',
-                                color: 'primary.main',
-                                mb: 3,
-                            }}
-                        >
-                            <HelpIcon fontSize="large" />
+                        <HelpIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
+                        <Box sx={{ flexGrow: 1, textAlign: { xs: 'center', sm: 'left' } }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                Help & Tutorials
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Learn how to get the most out of PlayRight with our comprehensive guides
+                            </Typography>
                         </Box>
-                        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
-                            Help & Tutorials
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
-                            Guides on setup, feedback, and statistics. Learn how to get the most out of PlayRight.
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            size="large"
-                            fullWidth
-                            sx={{
-                                borderRadius: '50px',
-                                py: 1.5,
-                                fontSize: '1.1rem',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderWidth: 2,
-                                '&:hover': { borderWidth: 2 }
-                            }}
-                        >
+                        <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'text.secondary',
+                            fontWeight: 500,
+                            fontSize: '0.875rem',
+                        }}>
                             View Guides
-                        </Button>
+                            <Box component="span" sx={{ ml: 1 }}>→</Box>
+                        </Box>
                     </Paper>
                 </Box>
             </Container>

@@ -32,10 +32,11 @@ export const parseMusicXMLToNotes = (musicXML) => {
     console.log(`Found ${noteElements.length} note elements in MusicXML`);
 
     noteElements.forEach((noteElement, index) => {
-        // Skip rests
+        // Check for rests - include them but mark as rest
         const isRest = noteElement.querySelector('rest');
         if (isRest) {
-            console.log(`Note ${index}: REST (skipped)`);
+            console.log(`Note ${index}: REST (included but marked)`);
+            notes.push({ name: 'rest', isRest: true });
             return;
         }
 
@@ -70,7 +71,7 @@ export const parseMusicXMLToNotes = (musicXML) => {
         noteName += octave;
 
         console.log(`Note ${index}: ${noteName}`);
-        notes.push({ name: noteName });
+        notes.push({ name: noteName, isRest: false });
     });
 
     console.log(`Total playable notes extracted: ${notes.length}`, notes);
