@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../config/api';
 import {
     Container,
     Box,
@@ -43,7 +44,7 @@ const Profile = () => {
                     throw new Error('Authentication token not found.');
                 }
 
-                const response = await fetch('http://localhost:3001/api/users/me', {
+                const response = await fetch(`${API_BASE}/api/users/me`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                     },
@@ -79,7 +80,7 @@ const Profile = () => {
         setPasswordLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3001/api/users/me/password', {
+            const response = await fetch(`${API_BASE}/api/users/me/password`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

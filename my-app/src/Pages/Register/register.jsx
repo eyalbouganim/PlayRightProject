@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { API_BASE } from '../../config/api';
 
 // MUI Imports
 import {
@@ -88,7 +89,7 @@ const Register = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:3001/api/auth/register', {
+            const response = await fetch(`${API_BASE}/api/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

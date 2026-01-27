@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { API_BASE } from '../../config/api';
 import {
     Box,
     Container,
@@ -77,7 +78,7 @@ const Journal = () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) { setError('User not authenticated'); setLoading(false); return; }
-                const response = await fetch('http://localhost:3001/api/performances/stats/user', {
+                const response = await fetch(`${API_BASE}/api/performances/stats/user`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) throw new Error('Failed to fetch');

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import { API_BASE } from '../../config/api';
 
 // MUI Imports
 import {
@@ -44,7 +45,7 @@ const Login = () => {
 
         try {
             // Your node server is running on port 3001
-            const response = await fetch('http://localhost:3001/api/auth/login', {
+            const response = await fetch(`${API_BASE}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ const Login = () => {
 
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
-            const response = await fetch('http://localhost:3001/api/auth/google', {
+            const response = await fetch(`${API_BASE}/api/auth/google`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

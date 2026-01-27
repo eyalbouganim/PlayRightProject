@@ -1,0 +1,110 @@
+# PlayRight Docker Compose
+# For local development and testing before deploying to Google Cloud Run
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: playright-db
+    environment:
+      POSTGRES_DB: playright_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js Backend
+  backend:
+    build:
+      context: ./node-server
+      dockerfile: Dockerfile
+    container_name: playright-backend
+    environment:
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=playright_db
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-devpassword123}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      - CORS_ORIGIN=http://localhost:3002,http://localhost:80,http://localhost
+      - BRAIN_URL=http://brain:8080
+      - PYTHON_PATH=/opt/venv/bin/python3
+      - STREAMING_SCRIPT_PATH=/app/brain-server/streaming_analysis.py
+      # Google Cloud credentials for Vertex AI (Gemini)
+      - GCP_PROJECT_ID=playright-482115
+      - GCP_LOCATION=us-central1
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      # Mount Google credentials file for Vertex AI
+      - ./node-server/google-credentials.json:/app/google-credentials.json:ro
+      # Mount streaming analysis script from brain-server
+      - ./brain-server/streaming_analysis.py:/app/brain-server/streaming_analysis.py:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Python Brain Server (GPU)
+  brain:
+    build:
+      context: ./brain-server
+      dockerfile: Dockerfile
+    container_name: playright-brain
+    environment:
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    # Uncomment below for GPU support (requires nvidia-docker)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./my-app
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:3001
+        - VITE_WS_URL=ws://localhost:3001
+    container_name: playright-frontend
+    ports:
+      - "80:8080"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  backend_uploads:

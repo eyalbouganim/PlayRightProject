@@ -24,8 +24,9 @@ const Performance = require('./models/performanceModel');
 const app = express();
 
 // CORS setup to allow requests from your React app
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3002';
 const corsOptions = {
-    origin: 'http://localhost:3002', // Allow requests ONLY from your React app
+    origin: corsOrigin.split(',').map(o => o.trim()), // Support multiple origins
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 app.use(cors(corsOptions));

@@ -5,6 +5,9 @@ const logger = require('../utils/logger');
 const Song = require('../models/songModel');
 const Performance = require('../models/performanceModel');
 
+// Brain server URL for cloud deployment (optional)
+const BRAIN_URL = process.env.BRAIN_URL;
+
 // Helper to convert MusicXML to MIDI using music21
 const convertXmlToMidi = (xmlPath, midiPath, pythonExe) => {
     let tempScriptPath = null;
@@ -18,7 +21,7 @@ try:
     # 1. Load the Score
     print(f"Loading score: {r'${xmlPath}'}")
     s = music21.converter.parse(r'${xmlPath}')
-    
+
     # 2. DELETE HARMONY (Chord Symbols)
     try:
         for element in s.recurse().getElementsByClass('Harmony'):
@@ -29,11 +32,11 @@ try:
     try:
         for element in s.recurse().getElementsByClass(['DaCapo', 'Fine', 'DalSegno', 'RepeatExpression']):
             element.activeSite.remove(element)
-            
+
         # Sanitize Barlines (Remove |: and :| logic)
         for m in s.recurse().getElementsByClass('Measure'):
             if m.leftBarline and isinstance(m.leftBarline, music21.bar.Repeat):
-                m.leftBarline = None 
+                m.leftBarline = None
             if m.rightBarline and isinstance(m.rightBarline, music21.bar.Repeat):
                 m.rightBarline = None
     except: pass
@@ -53,22 +56,23 @@ try:
     # 5. Write to MIDI
     print(f"Writing MIDI to: {r'${midiPath}'}")
     s.write('midi', fp=r'${midiPath}')
-    
+
 except Exception as e:
     print(f"Conversion Error: {str(e)}")
     sys.exit(1)
 `;
-        
+
         tempScriptPath = path.join(path.dirname(xmlPath), `convert_worker_${Date.now()}.py`);
         fs.writeFileSync(tempScriptPath, scriptContent);
 
-        execSync(`${pythonExe} "${tempScriptPath}"`);
+        const pythonPath = pythonExe || process.env.PYTHON_PATH || 'python3';
+        execSync(`${pythonPath} "${tempScriptPath}"`);
 
         if (!fs.existsSync(midiPath)) {
             throw new Error("MIDI file was not created by music21");
         }
 
-        const scrubCmd = `${pythonExe} -c "import pretty_midi; pm = pretty_midi.PrettyMIDI('${midiPath}'); pm.write('${midiPath}')"`;
+        const scrubCmd = `${pythonPath} -c "import pretty_midi; pm = pretty_midi.PrettyMIDI('${midiPath}'); pm.write('${midiPath}')"`;
         execSync(scrubCmd);
 
         return true;
@@ -82,6 +86,132 @@ except Exception as e:
             fs.unlinkSync(tempScriptPath);
         }
     }
+};
+
+// Call remote brain-server for alignment (cloud mode)
+const callBrainServer = async (audioPath, midiPath) => {
+    const FormData = require('form-data');
+    const fetch = require('node-fetch');
+
+    const formData = new FormData();
+    formData.append('audio', fs.createReadStream(audioPath));
+    formData.append('score', fs.createReadStream(midiPath));
+
+    const response = await fetch(`${BRAIN_URL}/align`, {
+        method: 'POST',
+        body: formData,
+        headers: formData.getHeaders()
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Brain server alignment failed');
+    }
+
+    return await response.json();
+};
+
+// Run local Python alignment (local mode)
+const runLocalAlignment = (audioPath, midiPath, pythonExe) => {
+    return new Promise((resolve, reject) => {
+        const scriptPath = path.resolve(__dirname, '../../brain-server/A2SA/python/align_eife.py');
+        const pythonProcess = spawn(pythonExe, [scriptPath, audioPath, midiPath]);
+
+        let resultBuffer = '';
+        let errorBuffer = '';
+
+        pythonProcess.stdout.on('data', (data) => { resultBuffer += data.toString(); });
+        pythonProcess.stderr.on('data', (data) => { errorBuffer += data.toString(); });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                reject(new Error(`Python process crashed with code ${code}: ${errorBuffer}`));
+                return;
+            }
+
+            try {
+                let jsonStartIndex = resultBuffer.indexOf('[');
+                let jsonEndIndex = resultBuffer.lastIndexOf(']') + 1;
+
+                if (jsonStartIndex === -1) {
+                    jsonStartIndex = resultBuffer.indexOf('{');
+                    jsonEndIndex = resultBuffer.lastIndexOf('}') + 1;
+                }
+
+                if (jsonStartIndex === -1 || jsonEndIndex <= jsonStartIndex) {
+                    reject(new Error("No valid JSON response from Alignment Engine"));
+                    return;
+                }
+
+                const parsedData = JSON.parse(resultBuffer.substring(jsonStartIndex, jsonEndIndex));
+
+                if (parsedData.error) {
+                    reject(new Error(`Alignment Script Error: ${parsedData.error}`));
+                    return;
+                }
+
+                resolve(parsedData);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+};
+
+// Process alignment results and calculate scores
+const processAlignmentResults = (alignmentData) => {
+    const playedNotes = alignmentData.filter(n => n.is_played);
+    let avgDuration = 0.5;
+
+    if (playedNotes.length > 0) {
+        const totalDur = playedNotes.reduce((sum, n) => sum + (n.end - n.start), 0);
+        avgDuration = totalDur / playedNotes.length;
+    }
+
+    const THRESHOLD_PERFECT = Math.min(0.08, Math.max(0.04, avgDuration * 0.15));
+    const THRESHOLD_OK = Math.min(0.18, Math.max(0.08, avgDuration * 0.35));
+
+    logger.info(`Grading: AvgDur=${avgDuration.toFixed(2)}s | Strict Perfect<${THRESHOLD_PERFECT.toFixed(3)}s`);
+
+    let totalTimingScore = 0;
+    let hitNotesCount = 0;
+
+    alignmentData.forEach(n => {
+        n.quality = "missed";
+        n.timing_score = 0;
+        n.timing_status = null;
+
+        if (n.is_played) {
+            hitNotesCount++;
+
+            const rawDev = n.timing_deviation;
+            const dev = Math.abs(rawDev);
+            const status = rawDev < 0 ? "early" : "late";
+
+            if (dev <= THRESHOLD_PERFECT) {
+                n.quality = "perfect";
+                n.timing_score = 100;
+            } else if (dev <= THRESHOLD_OK) {
+                n.quality = "ok";
+                n.timing_status = status;
+                const relativeError = (dev - THRESHOLD_PERFECT) / (THRESHOLD_OK - THRESHOLD_PERFECT);
+                n.timing_score = Math.max(0, Math.round(100 * (1 - relativeError)));
+            } else {
+                n.quality = "bad";
+                n.timing_status = status;
+                n.timing_score = 0;
+            }
+
+            totalTimingScore += n.timing_score;
+        }
+    });
+
+    const totalNotes = alignmentData.length;
+    const pitchScore = totalNotes > 0 ? Math.round((hitNotesCount / totalNotes) * 100) : 0;
+    const timingScore = hitNotesCount > 0 ? Math.round(totalTimingScore / hitNotesCount) : 0;
+    const finalGrade = Math.round((pitchScore * 0.7) + (timingScore * 0.3));
+
+    return { pitchScore, timingScore, finalGrade, alignmentData };
 };
 
 exports.align = async (req, res) => {
@@ -113,145 +243,57 @@ exports.align = async (req, res) => {
         tempMidiPath = path.join(tempDir, `score-${songId}-${timestamp}.mid`);
 
         fs.writeFileSync(tempXmlPath, song.musicXml);
-        
-        const pythonExe = path.resolve(__dirname, '../../brain-server/venv/bin/python3');
+
+        // Python executable path
+        const pythonExe = process.env.PYTHON_PATH ||
+            path.resolve(__dirname, '../../brain-server/venv/bin/python3');
+
         const conversionSuccess = convertXmlToMidi(tempXmlPath, tempMidiPath, pythonExe);
-        
+
         if (!conversionSuccess) {
             throw new Error("Failed to convert Song MusicXML to MIDI.");
         }
 
-        const scriptPath = path.resolve(__dirname, '../../brain-server/A2SA/python/align_eife.py');
-        const pythonProcess = spawn(pythonExe, [scriptPath, audioPath, tempMidiPath]);
+        let alignmentData;
 
-        let resultBuffer = '';
-        let errorBuffer = '';
+        // Choose between cloud mode (brain-server HTTP) or local mode (spawn Python)
+        if (BRAIN_URL) {
+            logger.info(`A2SA: Using remote brain-server at ${BRAIN_URL}`);
+            alignmentData = await callBrainServer(audioPath, tempMidiPath);
+        } else {
+            logger.info('A2SA: Using local Python alignment');
+            alignmentData = await runLocalAlignment(audioPath, tempMidiPath, pythonExe);
+        }
 
-        pythonProcess.stdout.on('data', (data) => { resultBuffer += data.toString(); });
-        pythonProcess.stderr.on('data', (data) => { errorBuffer += data.toString(); });
+        // Cleanup temp files
+        if (fs.existsSync(tempXmlPath)) fs.unlinkSync(tempXmlPath);
+        if (fs.existsSync(tempMidiPath)) fs.unlinkSync(tempMidiPath);
 
-        pythonProcess.on('close', async (code) => {
-            if (fs.existsSync(tempXmlPath)) fs.unlinkSync(tempXmlPath);
-            if (fs.existsSync(tempMidiPath)) fs.unlinkSync(tempMidiPath);
-            
-            if (code !== 0) {
-                logger.error(`A2SA: Python process crashed with code ${code}`);
-                return res.status(500).json({ error: "Alignment Engine Crashed", details: errorBuffer });
-            }
+        // Process results and calculate scores
+        const { pitchScore, timingScore, finalGrade, alignmentData: processedData } =
+            processAlignmentResults(alignmentData);
 
-            try {
-                let jsonStartIndex = resultBuffer.indexOf('[');
-                let jsonEndIndex = resultBuffer.lastIndexOf(']') + 1;
-                
-                if (jsonStartIndex === -1) {
-                    jsonStartIndex = resultBuffer.indexOf('{');
-                    jsonEndIndex = resultBuffer.lastIndexOf('}') + 1;
-                }
-
-                if (jsonStartIndex === -1 || jsonEndIndex <= jsonStartIndex) {
-                    throw new Error("No valid JSON response from Alignment Engine");
-                }
-                
-                const parsedData = JSON.parse(resultBuffer.substring(jsonStartIndex, jsonEndIndex));
-
-                if (parsedData.error) {
-                    throw new Error(`Alignment Script Error: ${parsedData.error}`);
-                }
-                
-                const alignmentData = parsedData;
-
-                // ============================================================
-                // [UPDATED] STRICT-BUT-FAIR GRADING
-                // ============================================================
-                
-                const playedNotes = alignmentData.filter(n => n.is_played);
-                let avgDuration = 0.5; 
-
-                if (playedNotes.length > 0) {
-                    const totalDur = playedNotes.reduce((sum, n) => sum + (n.end - n.start), 0);
-                    avgDuration = totalDur / playedNotes.length;
-                }
-
-                // 🎯 STRICTER TIMING SETTINGS (for serious practice)
-                // Perfect: 40-80ms (tighter than casual, achievable for intermediate students)
-                // OK: 80-180ms (gives feedback without frustration)
-                // Bad: >180ms (pushes students to improve)
-                const THRESHOLD_PERFECT = Math.min(0.08, Math.max(0.04, avgDuration * 0.15));
-                const THRESHOLD_OK = Math.min(0.18, Math.max(0.08, avgDuration * 0.35));
-
-                logger.info(`🎯 Grading: AvgDur=${avgDuration.toFixed(2)}s | Strict Perfect<${THRESHOLD_PERFECT.toFixed(3)}s`);
-
-                let totalTimingScore = 0;
-                let hitNotesCount = 0;
-
-                alignmentData.forEach(n => {
-                    n.quality = "missed";
-                    n.timing_score = 0;
-                    n.timing_status = null; // New Field: "early", "late", or null
-
-                    if (n.is_played) {
-                        hitNotesCount++;
-                        
-                        // Capture Raw Deviation (Signed) and Absolute Deviation (Magnitude)
-                        const rawDev = n.timing_deviation; 
-                        const dev = Math.abs(rawDev);
-                        
-                        // Determine Early/Late for ALL played notes (useful for debugging/UI)
-                        // negative = early, positive = late
-                        const status = rawDev < 0 ? "early" : "late";
-
-                        if (dev <= THRESHOLD_PERFECT) {
-                            n.quality = "perfect"; 
-                            n.timing_score = 100;
-                            // Perfect notes don't usually need a warning label, 
-                            // but you can set n.timing_status = status if you want strict feedback.
-                        } else if (dev <= THRESHOLD_OK) {
-                            n.quality = "ok"; 
-                            n.timing_status = status; // "early" or "late"
-                            
-                            const relativeError = (dev - THRESHOLD_PERFECT) / (THRESHOLD_OK - THRESHOLD_PERFECT);
-                            n.timing_score = Math.max(0, Math.round(100 * (1 - relativeError)));
-                        } else {
-                            n.quality = "bad"; 
-                            n.timing_status = status; // "early" or "late"
-                            n.timing_score = 0;
-                        }
-
-                        totalTimingScore += n.timing_score;
-                    }
-                });
-
-                const totalNotes = alignmentData.length;
-                const pitchScore = totalNotes > 0 ? Math.round((hitNotesCount / totalNotes) * 100) : 0;
-                const timingScore = hitNotesCount > 0 ? Math.round(totalTimingScore / hitNotesCount) : 0;
-                
-                const finalGrade = Math.round((pitchScore * 0.7) + (timingScore * 0.3));
-
-                const performance = await Performance.create({
-                    user_id: req.user.id,
-                    song_id: parseInt(songId, 10),
-                    overall_score: finalGrade,
-                    pitch_accuracy: pitchScore,
-                    timing_accuracy: timingScore,
-                    detected_notes: alignmentData, 
-                    audio_file_path: audioPath
-                });
-
-                logger.success(`A2SA: Analysis complete. Score: ${finalGrade}`);
-                
-                res.json({
-                    status: "success",
-                    performanceId: performance.id,
-                    grade: finalGrade,
-                    breakdown: { pitch: pitchScore, timing: timingScore },
-                    alignment: alignmentData
-                });
-
-            } catch (e) {
-                logger.error("A2SA: Processing Error", e.message);
-                if (!res.headersSent) res.status(500).json({ error: e.message });
-            }
+        // Save performance to database
+        const performance = await Performance.create({
+            user_id: req.user.id,
+            song_id: parseInt(songId, 10),
+            overall_score: finalGrade,
+            pitch_accuracy: pitchScore,
+            timing_accuracy: timingScore,
+            detected_notes: processedData,
+            audio_file_path: audioPath
         });
+
+        logger.success(`A2SA: Analysis complete. Score: ${finalGrade}`);
+
+        res.json({
+            status: "success",
+            performanceId: performance.id,
+            grade: finalGrade,
+            breakdown: { pitch: pitchScore, timing: timingScore },
+            alignment: processedData
+        });
+
     } catch (error) {
         logger.error("A2SA: Controller Error", error);
         if (tempXmlPath && fs.existsSync(tempXmlPath)) fs.unlinkSync(tempXmlPath);

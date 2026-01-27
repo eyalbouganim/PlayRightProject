@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../config/api';
 import {
     Container,
     Box,
@@ -68,7 +69,7 @@ const Recording = () => {
             if (!token) return;
             setIsLoadingSongs(true);
             try {
-                const response = await fetch('http://localhost:3001/api/songs?mode=performance', {
+                const response = await fetch(`${API_BASE}/api/songs?mode=performance`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -183,7 +184,7 @@ const Recording = () => {
                 'Authorization': `Bearer ${token}`
             };
 
-            const uploadResponse = await fetch('http://localhost:3001/api/songs/upload', {
+            const uploadResponse = await fetch(`${API_BASE}/api/songs/upload`, {
                 method: 'POST',
                 headers: headers,
                 body: formData
@@ -223,7 +224,7 @@ const Recording = () => {
             let songData = song;
 
             if (!songData.musicXml && songData.id) {
-                const response = await fetch(`http://localhost:3001/api/songs/${songData.id}`, {
+                const response = await fetch(`${API_BASE}/api/songs/${songData.id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -260,7 +261,7 @@ const Recording = () => {
         formData.append('songId', uploadedSongId);
 
         try {
-            const response = await fetch('http://localhost:3001/api/a2sa/align', {
+            const response = await fetch(`${API_BASE}/api/a2sa/align`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData

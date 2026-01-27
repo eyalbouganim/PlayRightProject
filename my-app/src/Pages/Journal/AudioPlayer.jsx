@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_BASE } from '../../config/api';
 import { Box, IconButton, Typography, Slider } from '@mui/material';
 import {
     PlayArrow as PlayIcon,
@@ -19,7 +20,7 @@ const AudioPlayer = ({ audioFilePath }) => {
     const relativePath = audioFilePath && audioFilePath.includes('uploads/')
         ? audioFilePath.substring(audioFilePath.indexOf('uploads/'))
         : audioFilePath;
-    const audioUrl = relativePath ? `http://localhost:3001/${relativePath}` : null;
+    const audioUrl = relativePath ? `${API_BASE}/${relativePath}` : null;
 
     useEffect(() => {
         if (!isLoaded) return;

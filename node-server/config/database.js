@@ -1,15 +1,33 @@
-const { Sequelize } = require('sequelize'); // Use require
+const { Sequelize } = require('sequelize');
 
-const dbName = 'playright_db';
-const dbUser = 'eyalb1380';
-const dbPassword = '123456'; // Make sure you use dbPassword here
-const dbHost = 'localhost';
+// Database configuration from environment variables
+const dbName = process.env.DB_NAME || 'playright_db';
+const dbUser = process.env.DB_USER || 'eyalb1380';
+const dbPassword = process.env.DB_PASSWORD || '123456';
+const dbHost = process.env.DB_HOST || 'localhost';
+const dbPort = process.env.DB_PORT || 5432;
 
-const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
-    host: dbHost,
-    dialect: 'postgres', // Tell Sequelize we're using PostgreSQL
-    logging: false, // Disable logging; default: console.log
-});
+// Determine if we're connecting via Unix socket (Cloud SQL) or TCP
+const isUnixSocket = dbHost.startsWith('/cloudsql/');
+
+const sequelizeOptions = {
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+};
+
+if (isUnixSocket) {
+    // Cloud SQL Unix socket connection
+    sequelizeOptions.host = dbHost;
+    sequelizeOptions.dialectOptions = {
+        socketPath: dbHost
+    };
+} else {
+    // Standard TCP connection (local development)
+    sequelizeOptions.host = dbHost;
+    sequelizeOptions.port = dbPort;
+}
+
+const sequelize = new Sequelize(dbName, dbUser, dbPassword, sequelizeOptions);
 
 // Test the connection
 (async () => {
@@ -21,4 +39,4 @@ const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
     }
 })();
 
-module.exports = sequelize; // Use module.exports
+module.exports = sequelize;

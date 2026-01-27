@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../config/api';
 import {
     Box,
     Container,
@@ -26,7 +27,7 @@ const MusicLibrary = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        fetch('http://localhost:3001/api/songs', {
+        fetch(`${API_BASE}/api/songs`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

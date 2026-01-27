@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../config/api';
 import {
     Container,
     Box,
@@ -75,7 +76,7 @@ const Learn = () => {
             if (!token) return;
             setIsLoadingSongs(true);
             try {
-                const response = await fetch('http://localhost:3001/api/songs?mode=learn', {
+                const response = await fetch(`${API_BASE}/api/songs?mode=learn`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -178,7 +179,7 @@ const Learn = () => {
             let songData = song;
 
             if (!songData.musicXml && songData.id) {
-                const response = await fetch(`http://localhost:3001/api/songs/${songData.id}`, {
+                const response = await fetch(`${API_BASE}/api/songs/${songData.id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {

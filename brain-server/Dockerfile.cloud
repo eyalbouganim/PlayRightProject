@@ -1,0 +1,51 @@
+# Dockerfile.cloud - GPU enabled for Cloud Run
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Prevent prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python and system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3-pip \
+    python3.11-venv \
+    libsndfile1 \
+    ffmpeg \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Make python3.11 the default python3
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+
+WORKDIR /app
+
+# Install PyTorch with CUDA support
+RUN pip3 install --no-cache-dir \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Copy and install requirements
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Install additional dependencies
+RUN pip3 install --no-cache-dir \
+    piano_transcription_inference \
+    pretty_midi \
+    scikit-learn \
+    gunicorn \
+    flask \
+    flask-cors
+
+# Copy & Permissions for C++ Binaries
+COPY A2SA/cpp/ A2SA/cpp/
+RUN chmod +x A2SA/cpp/*
+
+# Copy Python code
+COPY A2SA/python/ A2SA/python/
+COPY cloud_run_wrapper.py .
+
+ENV PORT=8080
+EXPOSE 8080
+
+# Use gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "300", "--workers", "1", "cloud_run_wrapper:app"]
