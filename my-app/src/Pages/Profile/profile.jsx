@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../config/api';
 import {
     Container,
     Box,
@@ -20,6 +21,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
 import BadgeIcon from '@mui/icons-material/Badge';
+import defaultProfilePic from '../../assets/profilePic.jpg';
 
 const Profile = () => {
     const [user, setUser] = useState(null);
@@ -42,7 +44,7 @@ const Profile = () => {
                     throw new Error('Authentication token not found.');
                 }
 
-                const response = await fetch('http://localhost:3001/api/users/me', {
+                const response = await fetch(`${API_BASE}/api/users/me`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                     },
@@ -78,7 +80,7 @@ const Profile = () => {
         setPasswordLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3001/api/users/me/password', {
+            const response = await fetch(`${API_BASE}/api/users/me/password`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -168,10 +170,12 @@ const Profile = () => {
                                 mb: 6
                             }}
                         >
-                            <Avatar 
-                                sx={{ 
-                                    width: 120, 
-                                    height: 120, 
+                            <Avatar
+                                src={user?.profile_pic || defaultProfilePic}
+                                alt={`${user?.first_name} ${user?.last_name}`}
+                                sx={{
+                                    width: 120,
+                                    height: 120,
                                     bgcolor: 'white',
                                     color: 'primary.main',
                                     fontSize: '3rem',

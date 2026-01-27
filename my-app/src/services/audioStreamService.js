@@ -1,5 +1,7 @@
 // src/services/audioStreamService.js
 // This class manages real-time communication between React and the Node.js server
+import { WS_BASE } from '../config/api';
+
 class AudioStreamService {
     constructor() {
         this.ws = null; // Web socket
@@ -16,7 +18,7 @@ class AudioStreamService {
     /**
      * Connect to WebSocket server
      */
-    connect(url = 'ws://localhost:3001') {
+    connect(url = WS_BASE) {
         return new Promise((resolve, reject) => {
             this.ws = new WebSocket(url);
 

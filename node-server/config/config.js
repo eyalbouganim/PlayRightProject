@@ -15,9 +15,11 @@ module.exports = {
     
     // Python configuration
     python: {
-        scriptPath: path.join(__dirname, '../../brain-server/streaming_analysis.py'),
+        // In Docker: /app/brain-server/streaming_analysis.py (mounted via volume)
+        // Locally: ../../brain-server/streaming_analysis.py (relative to config dir)
+        scriptPath: process.env.STREAMING_SCRIPT_PATH || path.join(__dirname, '../../brain-server/streaming_analysis.py'),
         analysisScriptPath: path.join(__dirname, '../../brain-server/audio_analysis/main.py'),
-        executable: '/home/eyalb1380/PlayRightProject/brain-server/venv/bin/python3',
+        executable: process.env.PYTHON_PATH || '/home/eyalb1380/PlayRightProject/brain-server/venv/bin/python3',
         timeout: 30000 // 30 seconds
     },
     

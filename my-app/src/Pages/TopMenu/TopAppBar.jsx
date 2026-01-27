@@ -21,7 +21,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import SettingsIcon from '@mui/icons-material/Settings';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import defaultProfilePic from '../../assets/profilePic.jpg';
 
 const TopAppBar = () => {
     const navigate = useNavigate();
@@ -74,7 +75,7 @@ const TopAppBar = () => {
         { label: 'Statistics', icon: <BarChartIcon />, path: '/statistics', color: '#ff9800' },
         { label: 'Library', icon: <LibraryMusicIcon />, path: '/library', color: '#9c27b0' },
         { label: 'Help & Tutorials', icon: <HelpOutlineIcon />, path: '/help', color: '#2196f3' },
-        { label: 'Settings', icon: <SettingsIcon />, path: '/settings', color: '#607d8b' }
+        { label: 'Journal', icon: <MenuBookIcon />, path: '/journal', color: '#607d8b' }
     ];
 
     // Check if current path matches nav item
@@ -197,6 +198,8 @@ const TopAppBar = () => {
                                 aria-expanded={open ? 'true' : undefined}
                             >
                                 <Avatar
+                                    src={user.profilePic || defaultProfilePic}
+                                    alt={user.firstName}
                                     sx={{
                                         width: 40,
                                         height: 40,

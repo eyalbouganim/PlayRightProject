@@ -1,0 +1,47 @@
+# Python virtual environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment files
+.env
+.env.*
+
+# Development files
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Training data (too large for container)
+training_data/
+A2SA/training_data/
+
+# Test files
+tests/
+*.test.py
+
+# Logs
+*.log
+
+# Misc
+README.md
+.DS_Store
+Thumbs.db
+
+# Model checkpoints (will be downloaded on first use)
+*.ckpt
+*.pt
+*.pth

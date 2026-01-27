@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../config/api';
 import {
     Container,
     Typography,
@@ -26,13 +27,13 @@ import {
     DialogActions,
     IconButton
 } from '@mui/material';
-import { 
-    Timeline, 
-    Speed, 
-    EmojiEvents, 
-    MusicNote, 
-    Close as CloseIcon, 
-    AutoAwesome as AutoAwesomeIcon 
+import {
+    Timeline,
+    Speed,
+    EmojiEvents,
+    MusicNote,
+    Close as CloseIcon,
+    AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 
 const Statistics = () => {
@@ -59,7 +60,7 @@ const Statistics = () => {
                     return;
                 }
 
-                const response = await fetch('http://localhost:3001/api/performances/stats/user', {
+                const response = await fetch(`${API_BASE}/api/performances/stats/user`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -96,7 +97,7 @@ const Statistics = () => {
         setModalLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/api/performances/${performanceId}/feedback`, {
+            const response = await fetch(`${API_BASE}/api/performances/${performanceId}/feedback`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

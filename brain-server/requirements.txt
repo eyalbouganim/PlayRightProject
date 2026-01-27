@@ -1,6 +1,8 @@
-Flask==2.3.3
+Flask==3.0.0
 Flask-CORS==4.0.0
-librosa==0.10.1              # Audio analysis
-numpy==2.3.5
-scipy==1.16.3
-tensorflow==2.20.0
+gunicorn
+librosa>=0.10.0
+numpy
+scipy
+piano_transcription_inference
+pretty_midi

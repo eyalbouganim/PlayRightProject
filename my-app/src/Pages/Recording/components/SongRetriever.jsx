@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../../config/api';
 import {
     Dialog,
     DialogContent,
@@ -39,7 +40,7 @@ const SongRetriever = ({ open, onClose, onSongSelected, token }) => {
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await fetch('http://localhost:3001/api/songs', {
+                    const response = await fetch(`${API_BASE}/api/songs`, {
                         headers: {
                             'Authorization': `Bearer ${token}`
                         }
@@ -69,7 +70,7 @@ const SongRetriever = ({ open, onClose, onSongSelected, token }) => {
 
     const handleSongClick = async (songId) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/songs/${songId}`, {
+            const response = await fetch(`${API_BASE}/api/songs/${songId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

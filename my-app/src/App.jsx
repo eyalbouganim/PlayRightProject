@@ -16,7 +16,7 @@ import ProtectedLayout from "./auth/ProtectedLayout.jsx";
 import Register from "./Pages/Register/register.jsx";
 import Statistics from "./Pages/Statistics/statistics.jsx";
 import About from "./Pages/About/about.jsx";
-import Settings from "./Pages/Settings/settings.jsx";
+import Journal from "./Pages/Journal/journal.jsx";
 import Help from "./Pages/Help/help.jsx";
 import MusicLibrary from "./Pages/MusicLibrary/musiclibrary.jsx";
 import Learn from "./Pages/Learn/learn.jsx";
@@ -144,7 +144,7 @@ function App() {
 
               {/* NEW ROUTES */}
               <Route path="/about" element={<About />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/journal" element={<Journal />} />
               <Route path="/help" element={<Help />} />
               <Route path="/library" element={<MusicLibrary />} />
 

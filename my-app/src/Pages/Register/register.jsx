@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { API_BASE } from '../../config/api';
 
 // MUI Imports
 import {
@@ -13,7 +14,8 @@ import {
     CircularProgress,
     InputAdornment,
     IconButton,
-    Paper
+    Paper,
+    Avatar
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import EmailIcon from '@mui/icons-material/Email';
@@ -21,6 +23,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import PersonIcon from '@mui/icons-material/Person';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import defaultProfilePic from '../../assets/profilePic.jpg';
 
 const Register = () => {
     const [firstName, setFirstName] = useState('');
@@ -28,10 +31,43 @@ const Register = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [profilePic, setProfilePic] = useState(null);
+    const [profilePicPreview, setProfilePicPreview] = useState(null);
     const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+
+    const validatePassword = (pwd) => {
+        if (pwd.length < 8) return 'Password must be at least 8 characters';
+        if (!/[a-z]/.test(pwd)) return 'Password must include a lowercase letter';
+        if (!/[A-Z]/.test(pwd)) return 'Password must include an uppercase letter';
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) return 'Password must include a special character';
+        return '';
+    };
+
+    const handlePasswordChange = (e) => {
+        const pwd = e.target.value;
+        setPassword(pwd);
+        setPasswordError(validatePassword(pwd));
+    };
+
+    const handleProfilePicChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Profile picture must be less than 5MB');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfilePic(reader.result);
+                setProfilePicPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -45,13 +81,20 @@ const Register = () => {
             return;
         }
 
+        const pwdError = validatePassword(password);
+        if (pwdError) {
+            setError(pwdError);
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const response = await fetch('http://localhost:3001/api/auth/register', {
+            const response = await fetch(`${API_BASE}/api/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ firstName, lastName, email, password }),
+                body: JSON.stringify({ firstName, lastName, email, password, profilePic }),
             });
 
             const data = await response.json();
@@ -127,6 +170,36 @@ const Register = () => {
                 <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                     {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
                     {success && <Alert severity="success" sx={{ width: '100%', mb: 2 }}>{success}</Alert>}
+
+                    {/* Profile Picture Upload */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                        <input
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            id="profile-pic-upload"
+                            type="file"
+                            onChange={handleProfilePicChange}
+                        />
+                        <label htmlFor="profile-pic-upload">
+                            <IconButton component="span" sx={{ p: 0 }}>
+                                <Avatar
+                                    src={profilePicPreview || defaultProfilePic}
+                                    sx={{
+                                        width: 100,
+                                        height: 100,
+                                        border: '3px solid',
+                                        borderColor: 'primary.main',
+                                        cursor: 'pointer',
+                                        '&:hover': { opacity: 0.8 }
+                                    }}
+                                />
+                            </IconButton>
+                        </label>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Click to upload profile picture (optional)
+                        </Typography>
+                    </Box>
+
                     <TextField
                         margin="normal"
                         autoComplete="given-name"
@@ -180,7 +253,12 @@ const Register = () => {
                         id="password"
                         autoComplete="new-password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={handlePasswordChange}
+                        error={!!passwordError && password.length > 0}
+                        helperText={password.length > 0 ? passwordError || 'Password meets requirements' : 'Min 8 chars, upper & lowercase, special character'}
+                        slotProps={{
+                            formHelperText: { sx: { color: passwordError ? 'error.main' : 'success.main' } }
+                        }}
                         InputProps={{
                             startAdornment: (<InputAdornment position="start"><LockIcon color="action" /></InputAdornment>),
                             endAdornment: (

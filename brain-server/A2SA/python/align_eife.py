@@ -6,7 +6,11 @@ import numpy as np
 import pretty_midi
 import shutil
 import tempfile
+import torch
 from transcription import transcribe_audio_to_midi
+
+# Auto-detect GPU availability for Docker compatibility
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Redirect libraries to stderr so JSON isn't polluted
 original_stdout = sys.stdout
@@ -40,7 +44,8 @@ def run_alignment(audio_path, score_path):
             file_perf = stem_perf + ".mid"
             
             shutil.copy2(score_path, os.path.join(temp_dir, file_score))
-            transcribe_audio_to_midi(audio_path, os.path.join(temp_dir, file_perf), device='cpu')
+            
+            transcribe_audio_to_midi(audio_path, os.path.join(temp_dir, file_perf), device=DEVICE)
 
             # Copy learned params config if it exists
             config_file = os.path.join(CPP_DIR, 'learned_params.config')
@@ -67,6 +72,7 @@ def run_alignment(audio_path, score_path):
             perf_midi_path = os.path.join(temp_dir, file_perf)
             
             output_data = parse_corresp(corresp_path, score_path, perf_midi_path)
+
             return json.dumps(output_data)
 
         except subprocess.CalledProcessError as e:

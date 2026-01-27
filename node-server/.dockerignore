@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+
+# Environment files (use Cloud Run secrets instead)
+.env
+.env.*
+
+# Uploads (use Cloud Storage in production)
+uploads/
+
+# Development files
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+coverage
+*.test.js
+*.spec.js
+
+# Google credentials (use Cloud Run service account instead)
+google-credentials.json
+
+# Misc
+README.md
+.DS_Store
+Thumbs.db

@@ -1,5 +1,6 @@
 // /home/eyalb1380/PlayRightProject/my-app/src/Pages/Recording/components/AnalysisDialog.jsx
 import React, { useState } from 'react';
+import { API_BASE } from '../../../config/api';
 import {
     Dialog,
     DialogTitle,
@@ -38,7 +39,7 @@ const AnalysisDialog = ({ open, onClose, performanceResults, performanceId }) =>
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/api/performances/${performanceId}/feedback`, {
+            const response = await fetch(`${API_BASE}/api/performances/${performanceId}/feedback`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

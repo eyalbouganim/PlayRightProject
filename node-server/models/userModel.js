@@ -35,6 +35,10 @@ User.init({
         type: DataTypes.STRING,
         allowNull: true,
         unique: true
+    },
+    profile_pic: {
+        type: DataTypes.TEXT('long'),
+        allowNull: true
     }
 }, {
     sequelize,                 // Pass the connection instance
