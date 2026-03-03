@@ -242,7 +242,7 @@ const Statistics = () => {
                                 <MenuItem value="Excellent">Excellent (90-100)</MenuItem>
                                 <MenuItem value="Good">Good (80-89)</MenuItem>
                                 <MenuItem value="Fair">Fair (60-79)</MenuItem>
-                                <MenuItem value="Needs Improvement">Needs Improvement (&lt;60)</MenuItem>
+                                <MenuItem value="Needs Improvement">Needs Improvement ({'<'}60)</MenuItem>
                             </Select>
                         </FormControl>
                     </Stack>

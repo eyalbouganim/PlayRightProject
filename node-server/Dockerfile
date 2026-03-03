@@ -35,11 +35,13 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
-# Create directories
-RUN mkdir -p uploads/audio uploads/temp brain-server
+# Create directories and copy streaming analysis script
+RUN mkdir -p uploads/audio uploads/temp
+COPY brain-server/streaming_analysis.py brain-server/
 
 # Set Python path for the application
 ENV PYTHON_PATH=/opt/venv/bin/python3
+ENV STREAMING_SCRIPT_PATH=/app/brain-server/streaming_analysis.py
 
 # Cloud Run uses PORT env variable
 ENV PORT=3001
