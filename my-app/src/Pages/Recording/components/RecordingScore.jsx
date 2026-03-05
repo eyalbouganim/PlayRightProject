@@ -2,6 +2,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const midiToNoteName = (midi) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
+
 const RecordingScore = ({ performanceResults }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -88,10 +91,6 @@ const RecordingScore = ({ performanceResults }) => {
         strokeColor = '#c0392b';
       }
 
-      if (note.quality === 'ok' || note.quality === 'bad') {
-        const text = note.timing_status === 'early' ? 'EARLY' : 'LATE';
-      }
-
       // Draw Note Bar
       ctx.fillStyle = color;
       ctx.fillRect(x, y, w, h);
@@ -101,26 +100,23 @@ const RecordingScore = ({ performanceResults }) => {
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, w, h);
 
-      // --- UPDATED LABEL LOGIC ---
-      if (w > 30) { // Only draw text if the note is wide enough
-        ctx.fillStyle = '#fff';
-        ctx.font = '10px Arial';
-        
-        let label = '';
+      // --- LABEL LOGIC ---
+      const noteName = midiToNoteName(note.pitch);
 
-        if (!note.is_played) {
-            label = 'MISS';
-        } else if (note.quality === 'perfect') {
-            // For perfect notes, just show the precise timing
-            label = `${Math.round(Math.abs(note.timing_deviation) * 1000)}ms`;
+      let qualityLabel = '';
+      if (note.is_played) {
+        if (note.quality === 'perfect') {
+          qualityLabel = `${Math.round(Math.abs(note.timing_deviation) * 1000)}ms`;
         } else {
-            // For 'ok' or 'bad', show the Feedback (EARLY/LATE)
-            // We use the status we added in the backend
-            const direction = note.timing_status === 'early' ? 'EARLY' : 'LATE';
-            label = direction;
+          qualityLabel = note.timing_status === 'early' ? 'EARLY' : 'LATE';
         }
+      }
 
-        // Draw the text centered vertically in the note bar
+      // Always draw at least the note name if the bar is wide enough
+      if (w > 18) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Arial';
+        const label = qualityLabel && w > 60 ? `${noteName} ${qualityLabel}` : noteName;
         ctx.fillText(label, x + 4, y + 13);
       }
     });
