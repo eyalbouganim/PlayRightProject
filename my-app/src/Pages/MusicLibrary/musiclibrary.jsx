@@ -14,8 +14,8 @@ import {
     InputAdornment
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import SchoolIcon from '@mui/icons-material/School';
 import { useNavigate } from 'react-router-dom';
 
 const DEFAULT_IMAGE = "https://waryhub.com/files/preview/960x960/11749650502uvhmelowysrqtxsoyzpvw3uqchrr3vmihvw05bl9ixktf4y9bqdcmkiyobwnduei45gztuskbzt249bqqij0ftlnqcrqsjue8cvd.png";
@@ -45,8 +45,12 @@ const MusicLibrary = () => {
             });
     }, []);
 
-    const handlePractice = (songId) => {
-        navigate('/recording', { state: { songId } });
+    const handlePractice = (song) => {
+        if (song.performance) {
+            navigate('/recording', { state: { songId: song.id } });
+        } else {
+            navigate('/learn', { state: { songId: song.id } });
+        }
     };
 
     const filteredSongs = songs.filter(song => {
@@ -169,17 +173,23 @@ const MusicLibrary = () => {
                                     </Typography>
                                 </CardContent>
                                 <CardActions sx={{ p: 2, pt: 0 }}>
-                                    <Button size="small" startIcon={<PlayArrowIcon />}>
-                                        Preview
-                                    </Button>
-                                    <Button 
-                                        size="small" 
-                                        variant="contained" 
-                                        startIcon={<MusicNoteIcon />}
-                                        onClick={() => handlePractice(song.id)}
-                                        sx={{ ml: 'auto', borderRadius: 20, textTransform: 'none', fontWeight: 600 }}
+                                    <Button
+                                        size="small"
+                                        variant="contained"
+                                        startIcon={song.performance ? <MusicNoteIcon /> : <SchoolIcon />}
+                                        onClick={() => handlePractice(song)}
+                                        sx={{
+                                            ml: 'auto',
+                                            borderRadius: 20,
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            bgcolor: song.performance ? 'primary.main' : '#4caf50',
+                                            '&:hover': {
+                                                bgcolor: song.performance ? 'primary.dark' : '#388e3c'
+                                            }
+                                        }}
                                     >
-                                        Practice
+                                        {song.performance ? 'Performance' : 'Learn'}
                                     </Button>
                                 </CardActions>
                             </Card>
