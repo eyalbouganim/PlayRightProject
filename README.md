@@ -37,27 +37,33 @@ The entire application is **containerized with Docker** (three services: React f
 Record your performance and receive a full analysis and a grade. Under the hood, PlayRight runs a custom **A2SA (Audio-to-Score Alignment)** pipeline:
 
 **Step 1 — Deep Learning Transcription**
-The raw audio recording is passed through a ByteDance deep learning model that transcribes it into a performance MIDI file. The model runs on GPU when available and falls back to CPU automatically. I specifically used NVIDIA's L4 GPU which is great for inference, through Google Cloud, where PlayRight is deployed through Cloud Run.
+The raw audio recording is passed through a ByteDance deep learning model that transcribes it into a performance MIDI file. The model runs on GPU when available and falls back to CPU automatically — on the live deployment this runs on an **NVIDIA L4 GPU** via Google Cloud Run for fast inference.
 
-**Step 2 — HMM-Based Score-Performance Alignment (C++ pipeline)**
-Both the score MIDI and the transcribed performance MIDI are fed through a multi-stage C++ pipeline:
-- `midi2pianoroll` converts both files to sparse piano roll representations
-- `SprToFmt3x` and `Fmt3xToHmm` build the HMM observation model from the score
-- `ScorePerfmMatcher` performs the initial HMM alignment between score and performance
-- `ErrorDetection` flags notes where the alignment is suspect
-- `RealignmentMOHMM` runs a second-pass alignment using a Multi-Observation HMM (MOHMM) to recover from initial errors
+**Step 2 — Modified C++ HMM Alignment Engine**
+Both the score MIDI and the transcribed performance MIDI are fed through a multi-stage C++ pipeline. The C++ engine originates from the academic paper referenced below, but was **significantly modified** to replace its hardcoded parameters with a trained ML model (see Step 3). The pipeline runs in order:
+- `midi2pianoroll` — converts both MIDIs to sparse piano roll format
+- `SprToFmt3x` / `Fmt3xToHmm` — builds the HMM observation model from the score
+- `ScorePerfmMatcher` — initial Viterbi-based alignment of performance to score
+- `ErrorDetection` — flags notes where alignment is suspect
+- `RealignmentMOHMM` — second-pass alignment using a Multi-Observation HMM (MOHMM) to recover from initial errors
+- `MatchToCorresp` — produces the final note correspondence file
 
-Crucially, the C++ tools load a **`learned_params.config`** file at runtime — a configuration produced by the custom-trained GMM model described below — which calibrates the HMM's timing and pitch emission probabilities specifically for amateur players.
+The C++ `ScoreFollower` class was modified to load `learned_params.config` at startup and use the trained GMM in **three distinct places** within its Viterbi algorithm:
+1. **Kalman filter initialization** — the GMM's weighted variance directly sets `Sig_t`, the measurement noise covariance used for real-time tempo tracking
+2. **Per-note likelihood (`UpdateLike`)** — the GMM replaces the original hardcoded single Gaussian when computing inter-onset interval probabilities during alignment
+3. **Pitch backtracking** — the learned pitch probabilities replace hardcoded values during Viterbi state selection
 
 **Step 3 — Self-Trained GMM + Domain Adaptation** *(train_params.py)*
-The `learned_params.config` file loaded by the C++ tools is not static — it was produced by training a **3-component Gaussian Mixture Model** from scratch on the MAESTRO dataset (professional piano recordings), with a key twist: **domain adaptation**. Since MAESTRO contains expert performances, synthetic Gaussian jitter (σ=60ms) is injected into each note's timing deviation to simulate how an amateur player would actually sound. The GMM learns three distinct timing behaviors from this adapted data:
+The parameters injected into the C++ engine are produced by training a **3-component Gaussian Mixture Model from scratch** on the MAESTRO dataset (professional piano recordings), with a critical addition: **domain adaptation**. Since MAESTRO contains expert performances, synthetic Gaussian jitter (σ=60ms) is injected into each note's timing deviation to simulate amateur playing. Without this, the HMM would be calibrated for concert pianists and would reject real users' notes as misaligned.
+
+The GMM learns three distinct timing behaviors from this adapted data:
 - **Component 1**: Precise notes (near-zero deviation)
 - **Component 2**: Rushed notes (negative mean)
 - **Component 3**: Delayed notes (positive mean)
 
-The model also builds a pitch error probability distribution — modeling the likelihood of correct notes, semitone slips (±1), and octave slips (±12) — aligned to the exact 5 error categories the C++ tools use internally.
+A pitch error probability model is also built — modeling the likelihood of correct notes, semitone slips (±1), and octave slips (±12) — aligned to the exact 5 error categories the C++ tools use internally.
 
-Once training completes, all learned parameters (GMM means, standard deviations, weights, and pitch probabilities) are written directly into `learned_params.config` inside the `cpp/` directory. When `align_eife.py` runs an analysis, it automatically detects this config file and copies it into the sandboxed temp directory alongside the C++ binaries — so the HMM tools pick it up transparently at startup, with no manual intervention needed. The result is that the C++ alignment engine runs with emission probabilities calibrated specifically for amateur players, not the generic defaults. The GMM is validated with 5-fold cross-validation before the config is written.
+Once training completes, all parameters are written to `learned_params.config` inside the `cpp/` directory. When `align_eife.py` runs an analysis, it automatically copies this file into a sandboxed temp directory alongside the C++ binaries, so the engine picks it up transparently at startup with no manual intervention. The GMM is validated with **5-fold cross-validation** before the config is written.
 
 **Step 4 — Tempo-Aware Timing Deviation (align_eife.py)**
 After the C++ tools produce a note correspondence file, the Python layer computes a **strict pitch check** (the transcribed pitch must exactly match the score pitch to count as played) and calculates a **tempo-aware timing deviation** for each note. Rather than measuring raw time offset, a local linear regression is fit over a sliding window of ±2 neighboring aligned notes, modeling the local tempo. Each note's deviation is then the residual from that local tempo prediction — meaning the score reports how early or late a note is *relative to the player's own tempo*, not a fixed grid. This signed deviation (negative = rushed, positive = delayed) is what drives the color-coded note feedback in the UI.
@@ -123,7 +129,7 @@ Practice at your own pace with **real-time note tracking**. The sheet music foll
 - Node.js v18+
 - Python 3.9+
 - PostgreSQL 14+
-- C++ compiled binaries — the A2SA alignment tools (`ScorePerfmMatcher`, `RealignmentMOHMM`, etc.) are pre-compiled C++ binaries sourced from the [LIMUNIMI/MMSP2021-Audio2ScoreAlignment](https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment) repository and must be present in `brain-server/A2SA/cpp/`
+- C++ compiled binaries — the A2SA alignment tools (`ScorePerfmMatcher`, `RealignmentMOHMM`, etc.) are based on [LIMUNIMI/MMSP2021-Audio2ScoreAlignment](https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment) with modifications to `ScoreFollower.hpp` for GMM integration; compiled binaries must be present in `brain-server/A2SA/cpp/`
 
 ### Installation
 
@@ -185,7 +191,7 @@ The A2SA alignment approach was informed by the academic paper:
 > **"Audio-to-Score Alignment Using Deep Automatic Music Transcription"**
 > Department of Computer Science, University of Milan
 
-The C++ score-performance matching tools (`ScorePerfmMatcher`, `RealignmentMOHMM`, etc.) were sourced from their accompanying repository:
+The original C++ score-performance matching tools were sourced from their accompanying repository:
 [https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment](https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment)
 
-The GMM training pipeline with domain adaptation, the pitch error probability model, the integration of the ByteDance transcription model, the tempo-aware timing deviation algorithm, and the full end-to-end analysis orchestration were all designed and implemented independently on top of these foundations.
+The C++ `ScoreFollower` class was then **modified** to replace hardcoded single-Gaussian timing and fixed pitch probabilities with a trained ML model. The GMM training pipeline (with domain adaptation), the pitch error probability model, the `learned_params.config` integration, the ByteDance transcription model integration, the tempo-aware timing deviation algorithm, and the full end-to-end analysis orchestration were all designed and implemented independently on top of these foundations.
