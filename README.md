@@ -83,6 +83,34 @@ Practice at your own pace with **real-time note tracking**. The sheet music foll
 
 ---
 
+## Pages & Features
+
+### Statistics
+A full performance history dashboard. Shows three summary cards at the top — total sessions, average score, and personal best (song + score). Below that, a filterable table of every past performance with columns for date, song, overall score (color-coded chip), pitch accuracy, and timing accuracy. Each row has a **"View AI Feedback"** button that fetches and displays the Gemini-generated feedback for that specific session in a modal — cached locally so repeat views don't re-fetch.
+
+Filters: by song name, and by score band (Excellent / Good / Fair / Needs Improvement).
+
+### Journal
+A personal practice tracker with three panels side by side:
+
+- **The Whiteboard** — an editable weekly goal with a checkbox to mark it achieved (triggers a confetti animation). Below the goal: a practice streak counter and a **GitHub-style contribution heatmap** showing which days you practiced. Mini stats at the bottom: total sessions, number of personal bests, average score.
+- **Personal Notes** — freeform notes for thoughts and reflections, with add/edit/delete. Persisted to localStorage.
+- **Wish List** — songs to learn and skills to develop, also add/edit/delete, also persisted.
+
+Below the three panels: a **Personal Bests** gallery showing every performance that scored above 85%, displayed as cards with per-performance notes. Paginated with a "Show More" button.
+
+### Music Library
+A searchable card grid of all available songs. Each card shows the song image, title, composer, and a difficulty chip (Easy / Medium / Hard). Searching by title or composer filters in real time. Clicking **Practice** on a card navigates directly to Performance Mode or Learn Mode depending on the song type — no extra steps needed. Users can also upload their own songs in MusicXML format.
+
+### Help & Tutorials
+An accordion FAQ covering:
+- **Microphone setup** — browser permissions, environment tips, optimal distance
+- **Feedback color guide** — Green (perfect), Orange (close), Red (missed)
+- **Reading your statistics** — how to interpret accuracy score and pitch consistency
+- **Troubleshooting** — mic not detected, laggy feedback
+
+---
+
 ## Screenshots
 
 ### Home
