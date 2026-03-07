@@ -1,462 +1,162 @@
 <div align="center">
 
-# 🎵 PlayRight
+# PlayRight
 
 **Intelligent Music Practice Platform with Real-Time Performance Analysis**
 
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
-[![C++](https://img.shields.io/badge/C%2B%2B-17+-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-*Transform your music practice with AI-powered feedback and interactive sheet music*
-
-[Features](#-features) • [Demo](#-screenshots) • [Technology](#-technology-stack) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
+*Practice smarter with AI-powered performance analysis and real-time feedback*
 
 </div>
 
 ---
 
-## 📖 About
+## About
 
-**PlayRight** is an advanced web application that revolutionizes music practice by providing instant, intelligent feedback on your performance. Using cutting-edge audio analysis and AI technology, PlayRight helps musicians of all levels improve their pitch accuracy, timing precision, and overall musicality.
-
-Whether you're learning scales, practicing challenging pieces, or preparing for performances, PlayRight gives you the insights and feedback you need to practice more effectively and improve faster.
+**PlayRight** is a web application that helps musicians improve through two distinct practice modes. It combines audio analysis, machine learning, and AI feedback to give players meaningful insight into their performance.
 
 ---
 
-## 🎯 Key Highlights
+## Practice Modes
 
-- 🎼 **Interactive Sheet Music** - Practice with real-time note highlighting and cursor tracking
-- 🎤 **Accurate Audio Analysis** - Advanced A2SA (Audio-to-Score Alignment) engine for precise note detection
-- 🤖 **AI-Powered Feedback** - Personalized performance insights powered by Gemini 2.5 Flash
-- 📊 **Detailed Analytics** - Track your progress with comprehensive performance statistics
-- 🎯 **Dual Practice Modes** - Performance mode with grading or Learn mode for stress-free practice
-- 📚 **Song Library** - Built-in default songs and support for custom MusicXML uploads
-- 🔒 **Secure & Personal** - JWT authentication with user-specific data and progress tracking
+### Performance Mode
 
----
+Record your performance and receive a full analysis and grade. Under the hood, PlayRight runs an **A2SA (Audio-to-Score Alignment)** pipeline:
 
-## ✨ Features
+1. **Deep Learning Transcription** — A ByteDance AI model transcribes your audio recording into MIDI
+2. **HMM Alignment** — A Hidden Markov Model (trained from scratch on the MAESTRO dataset) aligns your performance to the score
+3. **GMM Timing Analysis** — A Gaussian Mixture Model (also self-trained) classifies timing deviations into precise, rushed, and delayed components
+4. **C++ Processing Engine** — High-performance native C++ tools handle the score-performance matching pipeline
+5. **AI Feedback** — Gemini 2.5 Flash generates personalized, actionable feedback based on the detected errors
 
-### 🎼 Practice Modes
+The result is a grade based on pitch accuracy (70%) and timing accuracy (30%), with a color-coded note-by-note breakdown and AI-written commentary.
 
-#### **Performance Mode**
-- Record your performance with countdown timer
-- Real-time metronome with adjustable tempo and volume
-- **Advanced ML-Powered Analysis**:
-  - ByteDance's cutting-edge ML model for pitch detection
-  - Custom-trained Hidden Markov Model (HMM) for note onset detection
-  - Gaussian Mixture Model (GMM) for improved timing accuracy
-  - High-performance C++ processing engine (`A2SA/cpp/`) for real-time analysis
-- Detailed grading system analyzing pitch and timing
-- Visual feedback with color-coded note quality (Perfect/Good/Imprecise/Missed)
-- Playback your recording to review performance
+### Learn Mode
 
-#### **Learn Mode**
-- Practice at your own pace without time pressure
-- No grading or scoring - focus on learning
-- Interactive sheet music that follows your playing
-- Ideal for beginners and learning new pieces
-
-### 📊 Performance Analysis
-
-- **Comprehensive Scoring**: Overall grade based on pitch accuracy (70%) and timing accuracy (30%)
-- **Visual Note Graph**: Color-coded timeline showing every note played with quality indicators
-- **Timing Analysis**: Identifies notes played too early or too late with millisecond precision
-- **Machine Learning Pipeline** (Performance Mode only):
-  - **Pitch Detection**: ByteDance's state-of-the-art ML model
-  - **Note Onset Detection**: Custom-trained HMM with optimized parameters
-  - **Timing Analysis**: GMM-based approach for precise timing measurements
-  - **C++ Acceleration**: Native C++ implementation for sub-millisecond processing latency
-- **AI Feedback**: Intelligent, personalized tips powered by Gemini 2.5 Flash:
-  - Identifies patterns in your playing (rushing, hesitation, missed notes)
-  - Provides actionable practice recommendations based on detected issues
-  - Encourages progress and highlights achievements
-  - Adapts feedback based on specific timing deviations (early/late notes)
-
-### 📈 Statistics Dashboard
-
-- Track performance history across all songs
-- Filter by song, score range, and date
-- View trends in pitch and timing accuracy
-- Access AI feedback for any past performance
-- Identify your strengths and areas for improvement
-
-### 🎵 Music Library
-
-- **Default Songs**: Curated collection of scales and exercises across different keys and ranges
-- **Custom Uploads**: Support for MusicXML format files
-- **Smart Organization**: Separate libraries for Performance and Learn modes
-- **Song Management**: Upload, organize, and manage your personal song collection
-
-### 🎨 Modern User Interface
-
-- Clean, professional design with Material-UI components
-- Responsive layout for desktop and tablet devices
-- Intuitive navigation with global menu bar
-- Smooth animations and transitions
-- Production-level polish and attention to detail
+Practice at your own pace with **real-time note tracking**. The sheet music follows your playing as you go — no grading, no pressure. Designed to help you learn the basics and build muscle memory before moving to performance evaluation.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
-<!-- Add your screenshots here -->
-
-### Home Dashboard
+### Home
 
 <img width="1902" height="907" alt="Home" src="https://github.com/user-attachments/assets/df484b44-92da-4513-8b5f-497149e00fd6" />
-
 
 ### Performance Mode
 
 <img width="1897" height="906" alt="PlayRightPerformance" src="https://github.com/user-attachments/assets/5e8a1d23-1f1c-4fba-bf31-0e651eb881d3" />
 
-
 ### Analysis Results
 
 <img width="1908" height="905" alt="PlayRightAnalysis" src="https://github.com/user-attachments/assets/1b5b4f48-9fda-40dd-9a96-f79accd98033" />
 
-
 <img width="1188" height="846" alt="PlayRightAIFeedback" src="https://github.com/user-attachments/assets/3dd69ebe-a474-48bd-a5d6-f9e5506826a4" />
-
 
 ### Statistics Dashboard
 
 <img width="1900" height="906" alt="Statistics" src="https://github.com/user-attachments/assets/b529cf96-40bd-4713-b15c-d3e59176d40a" />
 
-
 ### Learn Mode
 
 <img width="1896" height="902" alt="LearnMode" src="https://github.com/user-attachments/assets/6f2ec6d3-fcee-4946-8385-8336d64e1a6a" />
 
+---
+
+## Technology Stack
+
+| Layer | Stack |
+|---|---|
+| Frontend | React 18, Material-UI v5, OpenSheetMusicDisplay, Web Audio API |
+| Backend | Node.js, Express, PostgreSQL, Sequelize, JWT |
+| Analysis | Python, ByteDance ML model, Custom HMM + GMM, C++ pipeline |
+| AI Feedback | Google Vertex AI (Gemini 2.5 Flash) |
+| Infrastructure | Docker, Google Cloud Run |
 
 ---
 
-## 🧠 Advanced Machine Learning Architecture
-
-PlayRight's **Performance Mode** is powered by a sophisticated machine learning pipeline that delivers professional-grade audio analysis:
-
-### 🎯 ML Components
-
-#### **Pitch Detection**
-- **ByteDance ML Model**: State-of-the-art deep learning model for accurate pitch detection
-- Trained on diverse musical datasets for robust performance
-- Sub-10ms latency for real-time feedback
-
-#### **Note Onset Detection**
-- **Custom-Trained HMM (Hidden Markov Model)**:
-  - Self-trained on extensive musical performance data
-  - Optimized parameters for piano/keyboard instruments
-  - Handles complex polyphonic patterns
-  - Accounts for natural playing variations (attack, sustain, release)
-
-#### **Timing Analysis**
-- **GMM (Gaussian Mixture Model)**:
-  - Custom implementation for precise timing measurements
-  - Models natural timing variations in human performance
-  - Distinguishes between intentional rubato and timing errors
-  - Adaptive thresholds based on tempo and note duration
-
-#### **High-Performance Processing**
-- **C++ Engine** (`A2SA/cpp/`):
-  - Native C++ implementation for critical path operations
-  - Sub-millisecond processing latency
-  - Optimized memory management for large audio buffers
-  - SIMD (Single Instruction, Multiple Data) optimizations
-
-### 🔄 Analysis Pipeline
-
-```
-Audio Input → ByteDance ML (Pitch) → HMM (Onset) → GMM (Timing) → C++ Processing → Results
-```
-
-### 📊 Why This Architecture?
-
-- **Accuracy**: Combines strengths of multiple ML approaches for >95% note detection accuracy
-- **Speed**: C++ engine ensures real-time processing without lag
-- **Robustness**: HMM handles variations in playing style and recording quality
-- **Precision**: GMM provides millisecond-level timing analysis
-
-> **Note**: These advanced ML features are exclusive to Performance Mode. Learn Mode uses a simplified analysis pipeline optimized for practice without grading.
-
----
-
-## 🚀 Technology Stack
-
-PlayRight leverages modern technologies to deliver a robust, scalable, and performant application.
-
-### Frontend (`my-app`)
-- **React 18** - Component-based UI framework
-- **Material-UI v5** - Comprehensive React UI library
-- **React Router v6** - Client-side routing
-- **OpenSheetMusicDisplay** - Professional sheet music rendering
-- **Web Audio API** - Audio recording and processing
-
-### Backend (`node-server`)
-- **Node.js 18+** - JavaScript runtime
-- **Express.js** - Web application framework
-- **PostgreSQL** - Relational database
-- **Sequelize** - Modern ORM for SQL databases
-- **JWT** - Secure authentication tokens
-- **Multer** - File upload handling
-- **Winston** - Professional logging
-
-### AI & Analysis (`brain-server`)
-- **Python 3.9+** - Analysis engine runtime
-- **A2SA (Audio-to-Score Alignment)** - Custom audio analysis algorithm with ML enhancements
-- **ByteDance ML Model** - Advanced pitch detection (Performance Mode)
-- **Custom HMM Implementation** - Self-trained Hidden Markov Model for note onset detection
-- **GMM (Gaussian Mixture Model)** - Custom implementation for timing analysis
-- **C++ Processing Engine** (`A2SA/cpp/`) - High-performance native code for real-time analysis
-- **music21** - Music notation and analysis toolkit
-- **pretty_midi** - MIDI file processing
-- **Google Vertex AI** - Gemini 2.5 Flash for AI feedback generation
-- **NumPy** - Numerical computing and statistical analysis
-
-### DevOps & Tools
-- **Git** - Version control
-- **npm** - Package management
-- **ESLint** - Code quality
-- **dotenv** - Environment configuration
-
----
-
-## 📂 Project Structure
-
-```
-PlayRightProject/
-├── my-app/                          # React Frontend
-│   ├── public/                      # Static assets
-│   └── src/
-│       ├── Pages/                   # Page components
-│       │   ├── Recording/           # Performance mode
-│       │   ├── Learn/               # Learn mode
-│       │   ├── Statistics/          # Analytics dashboard
-│       │   ├── TopMenu/             # Navigation bar
-│       │   └── ...
-│       ├── hooks/                   # Custom React hooks
-│       ├── utils/                   # Utility functions
-│       └── App.js                   # Root component
-│
-├── node-server/                     # Node.js Backend
-│   ├── controllers/                 # Request handlers
-│   │   ├── A2SAController.js       # Audio analysis endpoint
-│   │   ├── performancesController.js
-│   │   ├── songController.js
-│   │   └── userController.js
-│   ├── models/                      # Database models
-│   │   ├── performanceModel.js
-│   │   ├── songModel.js
-│   │   └── userModel.js
-│   ├── routes/                      # API routes
-│   ├── services/                    # Business logic
-│   │   ├── aiFeedbackService.js    # Gemini AI integration
-│   │   └── performancesService.js
-│   ├── middleware/                  # Custom middleware
-│   ├── utils/                       # Helper utilities
-│   ├── seeders/                     # Database seeders
-│   │   └── default-songs/           # MusicXML files
-│   └── server.js                    # Entry point
-│
-└── brain-server/                    # Python Analysis Engine
-    ├── A2SA/                        # Audio-to-Score Alignment
-    │   └── python/
-    │       └── align_eife.py        # Core alignment algorithm
-    ├── venv/                        # Python virtual environment
-    └── requirements.txt             # Python dependencies
-```
-
----
-
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- **Node.js** (v18.x or higher) - [Download](https://nodejs.org/)
-- **npm** (v9.x or higher) - Comes with Node.js
-- **Python** (v3.9 or higher) - [Download](https://www.python.org/)
-- **pip** (v21.x or higher) - Comes with Python
-- **PostgreSQL** (v14 or higher) - [Download](https://www.postgresql.org/)
+- Node.js v18+
+- Python 3.9+
+- PostgreSQL 14+
 
 ### Installation
 
-#### 1. Clone the Repository
 ```bash
 git clone https://github.com/eyalbouganim/PlayRightProject.git
 cd PlayRightProject
 ```
 
-#### 2. Set Up PostgreSQL Database
-```bash
-# Create a new database
-createdb playright_db
-
-# Or using psql
-psql -U postgres
-CREATE DATABASE playright_db;
-\q
-```
-
-#### 3. Configure Backend (`node-server`)
+**Backend:**
 ```bash
 cd node-server
 npm install
 ```
 
-Create a `.env` file in the `node-server` directory:
+Create `node-server/.env`:
 ```env
-# Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=playright_db
 DB_USER=postgres
 DB_PASSWORD=your_password
-
-# JWT Secret
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
-
-# Server Port
+JWT_SECRET=your_jwt_secret
 PORT=3001
-
-# Google Cloud AI (for AI feedback)
 GCP_PROJECT_ID=your-gcp-project-id
 GCP_LOCATION=us-central1
 ```
 
-Run database migrations and seed default songs:
+**Brain server:**
 ```bash
-npm start
-# The server will automatically sync models and seed default songs on first run
-```
-
-#### 4. Set Up Analysis Engine (`brain-server`)
-```bash
-cd ../brain-server
-
-# Create and activate virtual environment
-python3 -m venv venv
-
-# On macOS/Linux:
-source venv/bin/activate
-
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
+cd brain-server
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### 5. Configure Frontend (`my-app`)
+**Frontend:**
 ```bash
-cd ../my-app
+cd my-app
 npm install
 ```
 
----
+### Running
 
-## 🎮 Running the Application
-
-### Development Mode
-
-You need to run both the backend and frontend servers:
-
-#### Terminal 1 - Backend Server
 ```bash
-cd node-server
-npm start
-# Server runs on http://localhost:3001
+# Terminal 1
+cd node-server && npm start
+
+# Terminal 2
+cd my-app && npm start
 ```
 
-#### Terminal 2 - Frontend Server
-```bash
-cd my-app
-npm start
-# Application opens at http://localhost:3002
-```
-
-### First-Time Setup
-
-1. Open your browser and navigate to `http://localhost:3002`
-2. Click "Sign Up" to create a new account
-3. After registration, log in with your credentials
-4. You're ready to start practicing!
-
-### Default Songs
-
-The application comes with pre-loaded practice songs:
-- Low C Major Scale
-- High C Major Scale
-- Low B Major Scale
-- High E Minor Scale
-- And more!
+App runs at `http://localhost:3002`, API at `http://localhost:3001`.
 
 ---
 
-## 📚 Documentation
+## ML Implementation Notes
 
-### API Endpoints
+The HMM-GMM pipeline in Performance Mode was built and trained independently:
 
-#### Authentication
-- `POST /api/users/register` - Create new user account
-- `POST /api/users/login` - Authenticate user
-- `GET /api/users/profile` - Get user profile (requires auth)
-- `PUT /api/users/change-password` - Update password (requires auth)
-
-#### Songs
-- `GET /api/songs` - Get all songs (supports `?mode=performance` or `?mode=learn`)
-- `GET /api/songs/:id` - Get specific song with MusicXML
-- `POST /api/songs/upload` - Upload new MusicXML file (requires auth)
-- `DELETE /api/songs/:id` - Delete user's song (requires auth)
-
-#### Performance Analysis
-- `POST /api/a2sa/align` - Submit recording for analysis (requires auth)
-- `GET /api/performances/stats/user` - Get user's performance history (requires auth)
-- `GET /api/performances/:id/feedback` - Get AI feedback for specific performance (requires auth)
-
-### Database Schema
-
-#### Users
-- `id` (Primary Key)
-- `email` (Unique)
-- `password_hash`
-- `first_name`
-- `last_name`
-- `createdAt`, `updatedAt`
-
-#### Songs
-- `id` (Primary Key)
-- `title`
-- `artist`
-- `musicXml` (TEXT)
-- `performance` (Boolean - mode flag)
-- `default` (Boolean - system vs user song)
-- `user_id` (Foreign Key, nullable)
-- `createdAt`, `updatedAt`
-
-#### Performances
-- `id` (Primary Key)
-- `user_id` (Foreign Key)
-- `song_id` (Foreign Key)
-- `overall_score` (INTEGER 0-100)
-- `pitch_accuracy` (INTEGER 0-100)
-- `timing_accuracy` (INTEGER 0-100)
-- `detected_notes` (JSONB - full alignment data)
-- `analysis_details` (TEXT)
-- `audio_file_path` (TEXT)
-- `createdAt`, `updatedAt`
+- **[`brain-server/A2SA/python/train_params.py`](brain-server/A2SA/python/train_params.py)** — Trains both the GMM timing model and pitch probability distributions from scratch using the MAESTRO dataset, with domain adaptation (synthetic amateur jitter) to generalize beyond professional recordings.
+- **[`brain-server/A2SA/python/align_eife.py`](brain-server/A2SA/python/align_eife.py)** — Orchestrates the full alignment pipeline: runs the ByteDance deep learning transcription model, feeds the output through the C++ HMM tools, and parses the correspondence file to produce per-note timing deviations and pitch correctness scores.
 
 ---
 
-<div align="center">
+## References
 
-**Made with ❤️ for musicians everywhere**
+The A2SA alignment approach was informed by the academic paper:
 
-⭐ Star this repository if you find it helpful!
+> **"Audio-to-Score Alignment Using Deep Automatic Music Transcription"**
+> Department of Computer Science, University of Milan
 
-</div>
+The C++ score-performance matching tools were sourced from their accompanying repository:
+[https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment](https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment)
+
+The HMM-GMM training, domain adaptation, AI transcription integration, and full analysis pipeline were designed and implemented independently on top of these foundations.
