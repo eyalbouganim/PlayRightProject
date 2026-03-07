@@ -9,8 +9,14 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
 [![C++](https://img.shields.io/badge/C%2B%2B-17+-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Cloud%20Run-4285F4?style=flat-square&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
+[![Vertex AI](https://img.shields.io/badge/Vertex%20AI-Gemini%202.5%20Flash-DB4437?style=flat-square&logo=googlecloud&logoColor=white)](https://cloud.google.com/vertex-ai)
+[![NVIDIA L4](https://img.shields.io/badge/NVIDIA-L4%20GPU-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://cloud.google.com/compute/docs/gpus)
 
 *Practice smarter with AI-powered performance analysis and real-time feedback*
+
+**[Try it live →](https://frontend-1013568186744.us-central1.run.app/login)**
 
 </div>
 
@@ -19,6 +25,8 @@
 ## About
 
 **PlayRight** is a web application that helps musicians improve through two distinct practice modes. It combines audio analysis, machine learning, and AI feedback to give players meaningful insight into their performance.
+
+The entire application is **containerized with Docker** (three services: React frontend, Node.js backend, Python analysis engine) and **deployed on Google Cloud Run**. The analysis engine runs on an **NVIDIA L4 GPU** via Google Cloud for fast deep learning inference, and AI feedback is powered by **Google Vertex AI (Gemini 2.5 Flash)**.
 
 ---
 
@@ -102,8 +110,9 @@ Practice at your own pace with **real-time note tracking**. The sheet music foll
 | Frontend | React 18, Material-UI v5, OpenSheetMusicDisplay, Web Audio API |
 | Backend | Node.js, Express, PostgreSQL, Sequelize, JWT |
 | Analysis | Python, ByteDance deep learning model, Custom GMM (MAESTRO-trained), C++ HMM pipeline |
-| AI Feedback | Google Vertex AI (Gemini 2.5 Flash) |
-| Infrastructure | Docker, Google Cloud Run |
+| AI Feedback | Google Vertex AI — Gemini 2.5 Flash |
+| Infrastructure | Docker, Docker Compose, Google Cloud Run |
+| GPU | NVIDIA L4 (Google Cloud) — used for deep learning audio transcription |
 
 ---
 
