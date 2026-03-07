@@ -122,7 +122,7 @@ def parse_corresp(corresp_path, score_path, perf_path):
                 match_obj["s_idx"] = s_idx
                 match_obj["p_idx"] = p_idx
 
-                # STRICT PITCH CHECK (As you requested)
+                # STRICT PITCH CHECK
                 if perf_notes[p_idx].pitch == score_notes[s_idx].pitch:
                     strict_matches[s_idx] = True
                     matches.append(match_obj)
@@ -188,7 +188,7 @@ def parse_corresp(corresp_path, score_path, perf_path):
         timing_dev = deviation_map.get(i, 0.0)
         if not is_correct: timing_dev = 0.0
 
-        # [FIX IS HERE] Force minimum duration for collapsed notes
+        # Force minimum duration for collapsed notes
         final_start = float(warped_starts[i])
         final_end = float(warped_ends[i])
         

@@ -7,6 +7,7 @@
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
+[![C++](https://img.shields.io/badge/C%2B%2B-17+-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 
 *Practice smarter with AI-powered performance analysis and real-time feedback*
@@ -28,7 +29,7 @@
 Record your performance and receive a full analysis and a grade. Under the hood, PlayRight runs a custom **A2SA (Audio-to-Score Alignment)** pipeline:
 
 **Step 1 — Deep Learning Transcription**
-The raw audio recording is passed through a ByteDance deep learning model that transcribes it into a performance MIDI file. The model runs on GPU when available and falls back to CPU automatically.
+The raw audio recording is passed through a ByteDance deep learning model that transcribes it into a performance MIDI file. The model runs on GPU when available and falls back to CPU automatically. I specifically used NVIDIA's L4 GPU which is great for inference, through Google Cloud, where PlayRight is deployed through Cloud Run.
 
 **Step 2 — HMM-Based Score-Performance Alignment (C++ pipeline)**
 Both the score MIDI and the transcribed performance MIDI are fed through a multi-stage C++ pipeline:
@@ -56,7 +57,7 @@ After the C++ tools produce a note correspondence file, the Python layer compute
 Finally, time warping via linear interpolation maps all score notes — including missed ones — onto the performance timeline for display.
 
 **Step 5 — AI Feedback**
-The per-note results (pitch correctness, timing deviations, missed notes) are passed to **Gemini 2.5 Flash**, which generates personalized written feedback identifying patterns like rushing, hesitation, or consistent missed notes, with actionable practice recommendations.
+After receiving a score and a detailed analysis consisting of the played notes in comparison to the sheet music, the user is able to receive tips for improvement from  **Gemini 2.5 Flash**, which generates personalized written feedback identifying patterns like rushing, hesitation, or consistent missed notes, with actionable practice recommendations.
 
 **Result**: A grade based on pitch accuracy (70%) and timing accuracy (30%), a color-coded note-by-note breakdown (Perfect / Good / Imprecise / Missed), and AI-written commentary.
 
@@ -64,7 +65,7 @@ The per-note results (pitch correctness, timing deviations, missed notes) are pa
 
 ### Learn Mode
 
-Practice at your own pace with **real-time note tracking**. The sheet music follows your playing as you go — no grading, no pressure. Designed to help you learn the basics and build muscle memory before moving to performance evaluation.
+Practice at your own pace with **real-time note tracking**. The sheet music follows your playing as you go — no grading, no pressure. Designed to help you learn the basics and build muscle memory before moving to performance evaluation. Mostly scales for your left and right hand to get to know piano basics.
 
 ---
 
@@ -113,6 +114,7 @@ Practice at your own pace with **real-time note tracking**. The sheet music foll
 - Node.js v18+
 - Python 3.9+
 - PostgreSQL 14+
+- C++ compiled binaries — the A2SA alignment tools (`ScorePerfmMatcher`, `RealignmentMOHMM`, etc.) are pre-compiled C++ binaries sourced from the [LIMUNIMI/MMSP2021-Audio2ScoreAlignment](https://github.com/LIMUNIMI/MMSP2021-Audio2ScoreAlignment) repository and must be present in `brain-server/A2SA/cpp/`
 
 ### Installation
 
